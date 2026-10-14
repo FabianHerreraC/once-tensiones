@@ -1,0 +1,1538 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Once tensiones</title>
+<style>
+  :root {
+    --g1: #D4D4D4;
+    --g2: #E6E6E6;
+    --g3: #FFFFFF;
+    --ink: #003B15;
+    --accent: #00E245;
+    --accent-strong: #00C83D;
+    --on-accent: #003B15;
+    --ink-soft: rgba(0, 59, 21, 0.72);
+    --ink-faint: rgba(0, 59, 21, 0.48);
+    --line: rgba(0, 0, 0, 0.13);
+    --panel: var(--g3);
+    --panel-strong: var(--g3);
+    --violeta: #00E245;
+    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --serif: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --r: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--g3);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Un solo lienzo WebGL detrás de la interfaz: pinta en los recuadros de cada polo y del escenario */
+  #gl { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 5; }
+
+  .frame { height: 100dvh; display: grid; grid-template-rows: auto 1fr; gap: 14px; padding: 14px; }
+  .app {
+    display: grid; min-height: 0;
+    grid-template-columns: minmax(320px, 400px) 1fr minmax(300px, 340px);
+    grid-template-areas: "cat stage mix";
+    gap: 14px;
+  }
+  .app[hidden], .forest[hidden] { display: none; }
+  header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; padding: 4px 6px 0; }
+  nav.views { margin-left: auto; display: flex; gap: 4px; padding: 3px; border-radius: 99px; background: var(--g3); border: 1px solid var(--g1); align-self: center; }
+  nav.views button { box-shadow: none; background: transparent; border-color: transparent; padding: 7px 14px; }
+  nav.views button[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
+  nav.views .n { font-family: var(--mono); font-size: 10.5px; opacity: .7; margin-left: 4px; }
+
+  /* Bosque */
+  .forest { display: grid; min-height: 0; grid-template-columns: 1fr minmax(300px, 360px); grid-template-areas: "fst flist"; gap: 14px; }
+  #forestStage { grid-area: fst; }
+  .flabels { position: absolute; inset: 0; z-index: 7; pointer-events: none; overflow: hidden; }
+  .flabel { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; white-space: nowrap;
+    font-family: var(--serif); font-style: normal; font-size: 16px; color: var(--ink); padding: 3px 10px 4px; border-radius: 99px;
+    background: var(--g3); border: 1px solid var(--g1); box-shadow: 0 6px 16px -10px rgba(40,30,60,.35); transition: background .2s ease; }
+  .flabel:hover, .flabel.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .flabel::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 1px; height: 7px; background: rgba(0,0,0,.4); }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; z-index: 7; pointer-events: none; color: var(--ink-soft); }
+  .empty[hidden] { display: none; }
+  .empty b { display: block; font-family: var(--serif); font-weight: 400; font-size: 26px; color: var(--ink); margin-bottom: 4px; }
+  .flist { grid-area: flist; display: flex; flex-direction: column; }
+  .flist .scroll { overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+  .ftree[hidden] { display: none; }
+  .ftree { display: grid; grid-template-columns: 72px 1fr; gap: 10px; padding: 8px; border-radius: 11px; background: var(--g3); border: 0; box-shadow: 0 0 0 1px var(--g1), 0 10px 22px -18px rgba(0,0,0,.45); transition: box-shadow .2s ease; }
+  .ftree.on { box-shadow: 0 0 0 2px var(--accent), 0 14px 26px -18px rgba(0,0,0,.5); }
+  .ftree .ph { width: 72px; height: 72px; border-radius: 8px; background: var(--g2); }
+  .ftree img { width: 72px; height: 72px; border-radius: 8px; object-fit: cover; background: var(--g2); display: block; }
+  .ftree input { font: 400 19px/1.1 var(--serif); font-style: normal; color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed transparent; padding: 0 0 1px; width: 100%; }
+  .ftree input:hover { border-bottom-color: rgba(0,0,0,.3); }
+  .ftree input:focus { outline: none; border-bottom-color: var(--accent); }
+  .ftree .meta { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-top: 3px; }
+  .ftree .mixbar { height: 4px; margin-top: 6px; }
+  .ftree .acts { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .ftree .acts button { padding: 5px 9px; font-size: 11px; box-shadow: none; }
+  .ftree .acts .del.sure { background: #b3264f; color: #fff; }
+
+  /* Buscador del bosque */
+  .search { position: relative; margin: 0 12px 10px; }
+  .search input { width: 100%; font: 400 14px/1 var(--sans); color: var(--ink); padding: 10px 70px 10px 34px; border-radius: 99px; border: 0; background: var(--g3);
+    box-shadow: 0 0 0 1px var(--g1); -webkit-appearance: none; appearance: none; transition: box-shadow .15s ease; }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .search input::placeholder { color: var(--ink-faint); }
+  .search input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+  .search::before { content: ""; position: absolute; left: 13px; top: 50%; width: 10px; height: 10px; margin-top: -7px; border: 1.6px solid var(--ink); border-radius: 50%; }
+  .search::after { content: ""; position: absolute; left: 24px; top: 50%; width: 6px; height: 1.6px; margin-top: 3px; background: var(--ink); transform: rotate(45deg); }
+  .search .tag { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+  .nofound { margin: 4px 16px; font-size: 13px; color: var(--ink-soft); }
+  .flabel.dim { opacity: .18; pointer-events: none; }
+  mark { background: var(--accent); color: var(--on-accent); border-radius: 2px; }
+
+  /* Guardar */
+  dialog { border: 1px solid rgba(255,255,255,.8); border-radius: 16px; padding: 22px; width: min(400px, calc(100vw - 32px)); color: var(--ink);
+    background: var(--g3); box-shadow: 0 0 0 1px var(--g1), 0 30px 80px -30px rgba(0,0,0,.35); }
+  dialog::backdrop { background: rgba(0,0,0,.18); }
+  dialog h2 { margin: 0 0 4px; font-family: var(--serif); font-weight: 400; font-size: 26px; }
+  dialog p { margin: 0 0 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+  dialog img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 14px; background: var(--g2); }
+  dialog label { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  dialog input { display: block; width: 100%; margin-top: 6px; font: 400 22px/1.2 var(--serif); font-style: normal; color: var(--ink); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--g1); background: var(--g3); }
+  dialog input:focus { outline: 2px solid var(--violeta); outline-offset: 1px; }
+  dialog .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); opacity: 0; z-index: 20; transition: opacity .25s ease, transform .25s ease;
+    display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-size: 13px; box-shadow: 0 16px 40px -16px rgba(0,0,0,.4); pointer-events: none; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .toast button { padding: 6px 11px; background: #fff; border-color: transparent; }
+  header h1 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 28px; letter-spacing: -0.01em; line-height: 1; }
+  header h1 em { font-style: normal; }
+  header p { margin: 0; color: var(--ink-soft); font-size: 13.5px; max-width: 66ch; }
+  .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+
+  .panel {
+    background: var(--panel);
+    border: 0;
+    border-radius: var(--r);
+    box-shadow: 0 0 0 1px var(--g1);
+    min-height: 0;
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 10px; }
+  .panel-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .01em; }
+
+  /* Catálogo de conceptos */
+  .catalog { grid-area: cat; display: flex; flex-direction: column; }
+  .cards { overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+  .card {
+    border-radius: 12px; cursor: pointer;
+    background: var(--g3);
+    border: 0;
+    box-shadow: 0 0 0 1px var(--g1), 0 1px 0 1px rgba(0,0,0,.04), 0 10px 22px -18px rgba(0,0,0,.45);
+    transition: box-shadow .2s ease, transform .2s ease;
+    padding: 10px 12px 12px;
+  }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 0 0 1px #bdbdbd, 0 2px 0 1px rgba(0,0,0,.05), 0 18px 30px -18px rgba(0,0,0,.5); }
+  .card:focus-visible { outline: 2px solid var(--violeta); outline-offset: 2px; }
+  .card.open { box-shadow: 0 0 0 2px var(--accent), 0 18px 34px -20px rgba(0,0,0,.55); }
+  .card .top { display: flex; align-items: baseline; gap: 8px; }
+  .card .num { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); }
+  .card h3 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 22px; letter-spacing: -0.01em; line-height: 1.1; }
+  .card .role { margin-left: auto; font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 99px; background: var(--g2); color: var(--ink-soft); }
+  .card .poles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .card figure { margin: 0; }
+  .card .view { aspect-ratio: 1 / 1; width: 100%; border-radius: 9px; background: var(--g2); }
+  .card figcaption { text-align: center; margin-top: 2px; transition: opacity .25s ease; }
+  .card figcaption b { display: block; font-family: var(--serif); font-style: normal; font-weight: 400; font-size: 17px; }
+  .card figcaption span { font-size: 10.5px; color: var(--ink-soft); }
+  .tbar { position: relative; height: 4px; border-radius: 4px; margin: 8px 4px 0; background: linear-gradient(to right, var(--ca) var(--p), var(--cb) var(--p)); }
+  .tbar::after { content: ""; position: absolute; top: 50%; left: var(--p); width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 1px solid rgba(0,0,0,.3); transform: translate(-50%, -50%); box-shadow: 0 2px 5px rgba(0,0,0,.2); transition: left .2s ease; }
+  .desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; }
+  .desc > div { overflow: hidden; }
+  .card.open .desc { grid-template-rows: 1fr; }
+  .desc p { margin: 12px 2px 0; font-size: 13px; line-height: 1.55; color: var(--ink); text-wrap: pretty; }
+  .desc .pair { display: block; margin-top: 12px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+  .card .more { display: block; margin-top: 8px; text-align: center; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .card.open .more { display: none; }
+
+  /* Escenario */
+  .stage {
+    grid-area: stage; position: relative; border-radius: var(--r); overflow: hidden;
+    background: var(--g3);
+    border: 0; box-shadow: 0 0 0 1px var(--g1);
+    touch-action: none; cursor: grab; min-height: 0;
+  }
+  .stage:active { cursor: grabbing; }
+  .stage .overlay { position: absolute; z-index: 7; pointer-events: none; }
+  .stage .tl { top: 14px; left: 16px; }
+  .stage .tl .tag { color: rgba(0,59,21,.55); }
+  .stage .tl .big { font-family: var(--serif); font-size: 24px; margin-top: 2px; }
+  .stage .tr { z-index: 8; top: 12px; right: 12px; display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .stage .bl { left: 16px; right: 16px; bottom: 14px; }
+  .mixbar { display: flex; height: 6px; border-radius: 6px; overflow: hidden; background: var(--g2); }
+  .mixbar i { display: block; height: 100%; }
+  .stats { display: flex; justify-content: space-between; margin-top: 7px; font-family: var(--mono); font-size: 10.5px; color: rgba(0,59,21,.6); }
+
+  button {
+    font: 500 12px/1 var(--sans); color: var(--ink);
+    background: var(--g3); border: 1px solid var(--g1);
+    padding: 8px 11px; border-radius: 99px; cursor: pointer;
+    box-shadow: 0 6px 16px -10px rgba(60,50,30,.3);
+    transition: background .15s ease, transform .15s ease;
+  }
+  button:hover { background: #fff; }
+  button:active { transform: scale(.97); }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  button.primary:hover { background: var(--accent-strong); }
+  button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+  /* Mezclador */
+  .mixer { grid-area: mix; display: flex; flex-direction: column; }
+  .mixer .scroll { overflow-y: auto; padding: 0 16px 16px; scrollbar-width: thin; }
+  .hint { font-size: 12px; color: var(--ink-soft); margin: -2px 0 12px; line-height: 1.45; }
+  .group { padding: 10px 0 4px; border-top: 1px solid var(--line); }
+  .group h3 { margin: 0 0 4px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .trow { padding: 6px 6px 7px; margin: 0 -6px; border-radius: 8px; transition: background .3s ease; display: block; }
+  .trow.flash { background: var(--g3); }
+  .trow .rt { display: flex; justify-content: space-between; align-items: baseline; }
+  .trow .nm { font-size: 13px; font-weight: 500; }
+  .trow .nm small { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-right: 5px; font-weight: 400; }
+  .trow output { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); }
+  .trow .pl { display: flex; justify-content: space-between; font-family: var(--serif); font-style: normal; font-size: 14px; line-height: 1; }
+  .trow .pl span { transition: opacity .2s ease; }
+  .srow { display: grid; grid-template-columns: 1fr 120px 32px; align-items: center; gap: 9px; padding: 5px 0; }
+  .srow .nm { font-size: 12.5px; }
+  .srow output { font-family: var(--mono); font-size: 11px; text-align: right; color: var(--ink-soft); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; margin: 0; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: var(--track); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 4px; background: var(--track); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; margin-top: -5.5px; border-radius: 50%; background: #fff; border: 1px solid rgba(0,0,0,.25); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  input[type=range]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1px solid rgba(0,0,0,.25); box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+  input[type=range]:focus-visible { outline: 2px solid var(--violeta); outline-offset: 2px; border-radius: 4px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+  @media (max-width: 1150px) {
+    body { overflow: auto; }
+    .frame { height: auto; }
+    .app { grid-template-columns: 1fr 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage stage" "cat mix"; }
+    .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
+    .flist .scroll { overflow: visible; }
+    .cards { overflow: visible; }
+    .mixer .scroll { overflow: visible; }
+  }
+  @media (max-width: 720px) {
+    .frame { padding: 10px 16px; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 68vh auto auto; grid-template-areas: "stage" "mix" "cat"; }
+    nav.views { margin-left: 0; }
+  }
+  /* Ritmo tipográfico: Helvetica en tres pesos.
+     Thin para lo que se nombra (títulos, conceptos, polos, árboles),
+     negrita para lo que ordena (etiquetas, encabezados, botones),
+     regular para lo que se lee. */
+  :root { --thin: 200; --reg: 400; --bold: 700; }
+  body { font-weight: var(--reg); }
+  header h1 { font-weight: var(--thin); font-size: 32px; letter-spacing: -0.02em; }
+  header h1 em { font-weight: var(--bold); font-size: .62em; letter-spacing: 0; margin-left: 6px; }
+  header p { font-weight: var(--reg); }
+  .tag, .group h3, .card .role, .desc .pair, .card .more, .stats, .trow .nm small, dialog label, .ftree .meta, .card .num, .stage .tl .tag {
+    font-weight: var(--bold); letter-spacing: .07em; text-transform: uppercase; font-size: 9.5px;
+  }
+  .panel-head h2 { font-weight: var(--bold); font-size: 13px; letter-spacing: -0.005em; }
+  .card h3 { font-weight: var(--thin); font-size: 28px; letter-spacing: -0.02em; }
+  .card figcaption b { font-weight: var(--thin); font-size: 19px; letter-spacing: -0.01em; }
+  .card figcaption span { font-weight: var(--reg); }
+  .desc p { font-weight: var(--reg); }
+  .stage .tl .big { font-weight: var(--thin); font-size: 30px; letter-spacing: -0.02em; }
+  .trow .nm { font-weight: var(--bold); font-size: 12.5px; }
+  .trow .pl { font-weight: var(--thin); font-size: 15px; letter-spacing: -0.01em; }
+  .trow output, .srow output { font-weight: var(--reg); font-variant-numeric: tabular-nums; }
+  .srow .nm { font-weight: var(--reg); }
+  .hint { font-weight: var(--reg); }
+  button { font-weight: var(--bold); letter-spacing: .01em; }
+  .flabel { font-weight: var(--reg); font-size: 14px; }
+  .flabel.on { font-weight: var(--bold); }
+  .ftree input { font-weight: var(--thin); font-size: 22px; letter-spacing: -0.01em; }
+  dialog h2 { font-weight: var(--thin); font-size: 32px; letter-spacing: -0.02em; }
+  dialog input { font-weight: var(--thin); font-size: 24px; }
+  .empty b { font-weight: var(--thin); font-size: 30px; }
+  nav.views .n { font-weight: var(--reg); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div class="frame">
+  <header>
+    <h1>Once tensiones <em>del árbol universitario</em></h1>
+    <p>Cada tensión une dos polos, y cada polo es una geometría. Mueve los deslizadores para decidir hacia dónde crece el árbol; bajo el suelo, su raíz lo refleja.</p>
+    <nav class="views" aria-label="Secciones">
+      <button data-view="taller" aria-current="page">Taller</button>
+      <button data-view="bosque">Bosque<span class="n" id="forestCount">0</span></button>
+    </nav>
+  </header>
+
+  <div class="app" id="taller">
+
+  <section class="panel catalog" aria-label="Catálogo de tensiones">
+    <div class="panel-head"><h2>Catálogo</h2><span class="tag">11 tensiones · 22 piezas</span></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="stage" id="stage" aria-label="Árbol generado (arrastra para girar)">
+    <div class="overlay tl"><div class="tag">Árbol</div><div class="big" id="treeName">—</div></div>
+    <div class="overlay tr">
+      <button id="btnRoot" aria-pressed="false" title="Mostrar la raíz bajo el suelo (T)">Raíz</button>
+      <button id="btnSpin" aria-pressed="true" title="Girar solo">Girar</button>
+      <button id="btnPng" title="Guardar imagen PNG">PNG</button>
+      <button id="btnGrow" title="Nueva semilla (R)">Regenerar</button>
+      <button id="btnSave" class="primary" title="Guardar este árbol en el bosque (G)">Guardar árbol</button>
+    </div>
+    <div class="overlay bl">
+      <div class="mixbar" id="mixbar"></div>
+      <div class="stats"><span id="count">0 piezas</span><span id="seedOut"></span></div>
+    </div>
+  </section>
+
+  <section class="panel mixer" aria-label="Tensiones">
+    <div class="panel-head"><h2>Tensiones</h2><span class="tag">entre dos polos</span></div>
+    <div class="scroll">
+      <p class="hint">Cada deslizador reparte su función del árbol entre dos geometrías. Al centro conviven; en un extremo, un solo polo toma todo su lugar.</p>
+      <div class="presets" id="presets"></div>
+      <div id="groups"></div>
+      <div class="group" id="shape"><h3><span>Forma</span></h3></div>
+    </div>
+  </section>
+  </div>
+
+  <div class="forest" id="bosque" hidden>
+    <section class="stage" id="forestStage" aria-label="Bosque de árboles guardados (arrastra para recorrer)">
+      <div class="overlay tl"><div class="tag">Bosque</div><div class="big" id="forestTitle">—</div></div>
+      <div class="overlay tr">
+        <button class="rootToggle" aria-pressed="false" title="Mostrar las raíces (T)">Raíz</button>
+        <button id="btnForestAll" title="Ver todo el bosque">Ver todo</button>
+      </div>
+      <div class="flabels" id="flabels"></div>
+      <div class="empty" id="forestEmpty"><div><b>El bosque está vacío</b>Guarda un árbol desde el taller para plantarlo aquí.</div></div>
+    </section>
+    <section class="panel flist" aria-label="Árboles guardados">
+      <div class="panel-head"><h2>Árboles guardados</h2><span class="tag" id="forestTag">0</span></div>
+      <div class="search">
+        <input type="search" id="forestSearch" placeholder="Buscar por nombre" aria-label="Buscar árbol por nombre" autocomplete="off">
+        <span class="tag" id="searchCount"></span>
+      </div>
+      <div class="scroll" id="forestList"></div>
+      <p class="nofound" id="noFound" hidden>Ningún árbol se llama así.</p>
+    </section>
+  </div>
+</div>
+
+<dialog id="saveDlg">
+  <form method="dialog" id="saveForm">
+    <h2>Guardar árbol</h2>
+    <p>Se planta en el bosque con su semilla, su forma y la posición de las once tensiones.</p>
+    <img id="saveThumb" alt="">
+    <label for="saveName">Nombre</label>
+    <input id="saveName" name="name" maxlength="40" required autocomplete="off">
+    <div class="acts"><button type="button" id="saveCancel">Cancelar</button><button class="primary" value="ok">Plantar en el bosque</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastGo">Ver bosque</button></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeVertices, mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const TAU = Math.PI * 2;
+const UP = new THREE.Vector3(0, 1, 0);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/* ---------- ruido ---------- */
+const fract = x => x - Math.floor(x);
+const h3 = (x, y, z) => fract(Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453);
+const lerp = (a, b, t) => a + (b - a) * t;
+function n3(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = x - xi, yf = y - yi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+  return lerp(
+    lerp(lerp(h3(xi, yi, zi), h3(xi + 1, yi, zi), u), lerp(h3(xi, yi + 1, zi), h3(xi + 1, yi + 1, zi), u), v),
+    lerp(lerp(h3(xi, yi, zi + 1), h3(xi + 1, yi, zi + 1), u), lerp(h3(xi, yi + 1, zi + 1), h3(xi + 1, yi + 1, zi + 1), u), v), w);
+}
+function fbm3(x, y, z, o = 4) {
+  let s = 0, a = .5, f = 1, n = 0;
+  for (let i = 0; i < o; i++) { s += a * n3(x * f, y * f, z * f); n += a; a *= .5; f *= 2.03; }
+  return s / n;
+}
+// ruido 2D periódico para texturas que repiten sin costura
+function n2p(x, y, P) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const h = (i, j) => h3(((i % P) + P) % P, ((j % P) + P) % P, P);
+  return lerp(lerp(h(xi, yi), h(xi + 1, yi), u), lerp(h(xi, yi + 1), h(xi + 1, yi + 1), u), v);
+}
+function fbm2p(x, y, P, o = 4) {
+  let s = 0, a = .5, n = 0;
+  for (let i = 0; i < o; i++) { s += a * n2p(x, y, P); n += a; a *= .5; x *= 2; y *= 2; P *= 2; }
+  return s / n;
+}
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+
+/* ---------- texturas procedurales (de la referencia: arenado, pómez, perforado) ---------- */
+function canvasOf(n, draw) { const c = document.createElement('canvas'); c.width = c.height = n; draw(c.getContext('2d'), n); return c; }
+function pixels(n, fn) {
+  return canvasOf(n, (g) => {
+    const img = g.createImageData(n, n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const v = Math.max(0, Math.min(255, fn(x / n, y / n) * 255)), i = (y * n + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  });
+}
+const CANVAS = {
+  arenado: pixels(256, (u, v) => .5 + .35 * (fbm2p(u * 16, v * 16, 16, 3) - .5) + .45 * (Math.random() - .5)),
+  pomez: (() => {
+    const c = pixels(512, (u, v) => { const f = fbm2p(u * 8, v * 8, 8, 5); return .5 + 1.6 * (f - .5) + .18 * (Math.random() - .5); });
+    const g = c.getContext('2d');
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * 512, y = Math.random() * 512, r = .6 + Math.random() ** 3 * 4;
+      g.fillStyle = `rgba(0,0,0,${.35 + Math.random() * .4})`;
+      g.beginPath(); g.ellipse(x, y, r * (1 + Math.random()), r, Math.random() * TAU, 0, TAU); g.fill();
+    }
+    return c;
+  })(),
+  dots: (bg, fg, r, stagger = true) => canvasOf(64, (g, n) => {
+    g.fillStyle = bg; g.fillRect(0, 0, n, n);
+    const pts = stagger ? [[n / 4, n / 4], [3 * n / 4, 3 * n / 4]] : [[n / 2, n / 2]];
+    for (const [x, y] of pts) {
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, fg); gr.addColorStop(.7, fg); gr.addColorStop(1, bg);
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    }
+  }),
+};
+CANVAS.limaBump = CANVAS.dots('#ffffff', '#000000', 10);
+CANVAS.limaColor = CANVAS.dots('#a6d42c', '#4f7a0c', 9);
+CANVAS.perla = CANVAS.dots('#eef0fa', '#4b3fd2', 15, false);
+CANVAS.perlaBump = CANVAS.dots('#ffffff', '#000000', 15, false);
+
+function tex(canvas, rx = 1, ry = rx, color = false) {
+  const t = new THREE.CanvasTexture(canvas);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.anisotropy = 8;
+  if (color) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ---------- materiales ---------- */
+const MAT = {
+  azul: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x6f86e8, metalness: .42, roughness: .52, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .15, clearcoatRoughness: .6 }),
+  violeta: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x5b40e0, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0x9a86ff), sheenRoughness: .6 }),
+  violetaSaten: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x7563ec, metalness: .25, roughness: .36, bumpMap: tex(CANVAS.arenado, r), bumpScale: .35, clearcoat: .4, clearcoatRoughness: .35 }),
+  lima: (rx, ry) => new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: tex(CANVAS.limaColor, rx, ry, true), bumpMap: tex(CANVAS.limaBump, rx, ry), bumpScale: 1.6, metalness: .05, roughness: .42, clearcoat: .35, clearcoatRoughness: .4, side: THREE.DoubleSide }),
+  rosa: () => new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: .26, metalness: 0, clearcoat: 1, clearcoatRoughness: .18, sheen: .5, sheenColor: new THREE.Color(0xffb3f2) }),
+  rosaPetalo: () => new THREE.MeshPhysicalMaterial({ color: 0xee6fdc, roughness: .3, clearcoat: 1, clearcoatRoughness: .2, sheen: .4, sheenColor: new THREE.Color(0xffc4f5), side: THREE.DoubleSide }),
+  menta: () => new THREE.MeshPhysicalMaterial({ color: 0x66d9a4, roughness: .3, metalness: .02, clearcoat: .7, clearcoatRoughness: .25, side: THREE.DoubleSide }),
+  perla: (rx, ry) => new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: tex(CANVAS.perla, rx, ry, true), bumpMap: tex(CANVAS.perlaBump, rx, ry), bumpScale: 1.2, roughness: .5, metalness: .04, clearcoat: .3 }),
+  perlaLisa: () => new THREE.MeshPhysicalMaterial({ color: 0xf4f2ff, roughness: .14, metalness: 0, clearcoat: 1, clearcoatRoughness: .1, iridescence: .7, iridescenceIOR: 1.35, sheen: .3, sheenColor: new THREE.Color(0xd8d0ff) }),
+  jade: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x2f9e78, metalness: .4, roughness: .48, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .25, clearcoatRoughness: .5 }),
+  musgo: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x5f9a2c, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0xc4f08a), sheenRoughness: .6 }),
+  cristal: () => new THREE.MeshPhysicalMaterial({ color: 0xd9ddff, roughness: .08, metalness: .15, clearcoat: 1, clearcoatRoughness: .05, iridescence: 1, iridescenceIOR: 1.5, flatShading: true }),
+};
+
+/* ---------- utilidades de geometría ---------- */
+// Tubo con radio variable a lo largo de la curva (y rugosidad opcional por ruido)
+function taperTube(curve, rfn, { ts = 120, rs = 28, rough = 0, freq = 6 } = {}) {
+  const g = new THREE.TubeGeometry(curve, ts, 1, rs, false);
+  const pos = g.attributes.position, uv = g.attributes.uv;
+  const p = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    const u = uv.getX(i);
+    curve.getPointAt(u, c);
+    p.fromBufferAttribute(pos, i).sub(c);
+    let r = rfn(u);
+    if (rough) { const q = p.clone().multiplyScalar(r).add(c); r *= 1 + rough * (fbm3(q.x * freq, q.y * freq, q.z * freq) - .5); }
+    p.multiplyScalar(r).add(c);
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+const caps = (u, a = .06, b = .1) => Math.sqrt(1 - (1 - Math.min(u / a, 1)) ** 2) * Math.sqrt(1 - (1 - Math.min((1 - u) / b, 1)) ** 2);
+function displaced(g, fn) {
+  g.deleteAttribute('uv'); g.deleteAttribute('normal');
+  g = mergeVertices(g);
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); }
+  g.computeVertexNormals();
+  return g;
+}
+function lathe(N, rfn, seg = 56) {
+  const pts = [];
+  for (let i = 0; i <= N; i++) { const y = i / N; pts.push(new THREE.Vector2(i === 0 || i === N ? 0 : Math.max(.0005, rfn(y)), y)); }
+  return new THREE.LatheGeometry(pts, seg);
+}
+function warp(g, fn) {
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); fn(v); p.setXYZ(i, v.x, v.y, v.z); }
+  g.computeVertexNormals();
+  return g;
+}
+const mesh = (g, m) => new THREE.Mesh(g, m);
+const GEO = {};
+const once = (key, fn) => () => (GEO[key] ??= fn());
+
+/* ---------- las 22 geometrías (dos por tensión) ----------
+   Estructura: nacen en y=0 y llegan a y=1 (se escalan con el largo de la rama).
+   Remates: nacen en y=0 sobre la punta. Nudos: centrados en la unión. */
+const PIECES = [
+  // Memoria
+  {
+    id: 'placa', name: 'Placa ósea', mat: 'Metal arenado azul', color: '#6f86e8',
+    geo: once('placa', () => {
+      const s = new THREE.Shape();
+      s.moveTo(-.15, 0); s.lineTo(.15, 0);
+      s.bezierCurveTo(.2, .18, .31, .3, .31, .5);
+      s.bezierCurveTo(.31, .82, .2, 1, 0, 1);
+      s.bezierCurveTo(-.2, 1, -.31, .82, -.31, .5);
+      s.bezierCurveTo(-.31, .3, -.2, .18, -.15, 0);
+      const a = new THREE.Path(); a.absellipse(0, .63, .15, .072, 0, TAU, true);
+      const b = new THREE.Path(); b.absellipse(0, .3, .072, .042, 0, TAU, true);
+      s.holes.push(a, b);
+      const g = new THREE.ExtrudeGeometry(s, { depth: .1, bevelEnabled: true, bevelThickness: .05, bevelSize: .035, bevelSegments: 6, curveSegments: 48 });
+      g.translate(0, 0, -.05);
+      return g;
+    }),
+    make() { this.m ??= MAT.azul(5); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'catalejo', name: 'Catalejo', mat: 'Perla punteada y anillo lima', color: '#b9bde0',
+    geo: once('catalejo', () => ({
+      body: lathe(320, y => {
+        const seg = y < .42 ? .085 : y < .74 ? .066 : .05;
+        const lip = (Math.abs(y - .42) < .014 || Math.abs(y - .74) < .014) ? .012 : 0;
+        return (seg + lip + .045 * smooth(.9, 1, y)) * Math.min(1, y * 40);
+      }, 56),
+      ring: new THREE.TorusGeometry(.105, .02, 20, 72).rotateX(Math.PI / 2).translate(0, .995, 0),
+    })),
+    make() {
+      const { body, ring } = this.geo();
+      this.mb ??= MAT.perla(10, 14); this.mr ??= MAT.lima(30, 3);
+      const g = new THREE.Group(); g.add(mesh(body, this.mb), mesh(ring, this.mr)); return g;
+    },
+  },
+  // Arraigo
+  {
+    id: 'tocon', name: 'Tocón', mat: 'Pómez violeta', color: '#5b40e0',
+    geo: once('tocon', () => warp(lathe(160, y => (.085 + .17 * Math.pow(1 - y, 4)) * Math.min(1, (1 - y) * 25, y * 60), 72), v => {
+      const y = v.y, a = Math.atan2(v.z, v.x);
+      const k = 1 + .3 * Math.pow(1 - y, 3) * Math.pow(Math.max(0, Math.cos(5 * a)), 3) + .22 * (fbm3(v.x * 7, v.y * 7, v.z * 7) - .5);
+      v.x *= k; v.z *= k;
+    })),
+    make() { this.m ??= MAT.violeta(5, 2); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'arco', name: 'Arco perforado', mat: 'Malla lima', color: '#8fc31f',
+    geo: once('arco', () => {
+      const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(.22, .16, .05), V(.33, .5, 0), V(.22, .84, -.05), V(0, 1, 0)]);
+      return taperTube(c, u => .062 + .035 * Math.abs(u - .5) ** 3 * 8);
+    }),
+    make() { this.m ??= MAT.lima(34, 6); return mesh(this.geo(), this.m); },
+  },
+  // Viaje
+  {
+    id: 'eje', name: 'Eje', mat: 'Metal arenado y cuenta rosa', color: '#e45fd8',
+    geo: once('eje', () => ({
+      col: lathe(240, y => .046 + .022 * Math.exp(-(((y - .1) / .025) ** 2)) + .022 * Math.exp(-(((y - .9) / .025) ** 2)), 48),
+      bead: new THREE.SphereGeometry(.13, 48, 32).scale(1, .82, 1).translate(0, .5, 0),
+    })),
+    make() {
+      const { col, bead } = this.geo();
+      this.mc ??= MAT.azul(3); this.mb ??= MAT.rosaPetalo();
+      const g = new THREE.Group(); g.add(mesh(col, this.mc), mesh(bead, this.mb)); return g;
+    },
+  },
+  {
+    id: 'haz', name: 'Haz', mat: 'Esmalte menta', color: '#66d9a4',
+    geo: once('haz', () => {
+      const parts = [];
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * TAU;
+        const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(Math.cos(a + .6) * .03, .3, Math.sin(a + .6) * .03), V(Math.cos(a + 1.3) * .11, .65, Math.sin(a + 1.3) * .11), V(Math.cos(a + 1.9) * .22, 1, Math.sin(a + 1.9) * .22)]);
+        parts.push(taperTube(c, u => .027 * (1 - .4 * u) * caps(u, .02, .05), { ts: 80, rs: 14 }));
+      }
+      return mergeGeometries(parts);
+    }),
+    make() { this.m ??= MAT.menta(); return mesh(this.geo(), this.m); },
+  },
+  // Umbral
+  {
+    id: 'menta', name: 'Haba', mat: 'Esmalte menta', color: '#66d9a4',
+    geo: once('menta', () => displaced(new THREE.SphereGeometry(.2, 64, 40), v => {
+      v.multiply(V(1.15, .75, .85)); v.multiplyScalar(1 + .12 * (fbm3(v.x * 4 + 3, v.y * 4, v.z * 4) - .5));
+    })),
+    make() { this.m ??= MAT.menta(); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'ojal', name: 'Ojal', mat: 'Metal arenado azul', color: '#8d9eef', sideways: true,
+    geo: once('ojal', () => {
+      const s = new THREE.Shape();
+      s.moveTo(-.12, 0); s.lineTo(.12, 0); s.lineTo(.12, .34); s.absarc(0, .34, .12, 0, Math.PI, false); s.lineTo(-.12, 0);
+      const h = new THREE.Path(); h.absarc(0, .34, .055, 0, TAU, true); s.holes.push(h);
+      const g = new THREE.ExtrudeGeometry(s, { depth: .04, bevelEnabled: true, bevelThickness: .025, bevelSize: .02, bevelSegments: 5, curveSegments: 40 });
+      g.translate(0, -.04, -.02);
+      return g;
+    }),
+    make() { this.m ??= MAT.azul(8); return mesh(this.geo(), this.m); },
+  },
+  // Asombro
+  {
+    id: 'cristal', name: 'Cristal', mat: 'Facetas iridiscentes', color: '#a9b0ef',
+    geo: once('cristal', () => {
+      const a = new THREE.OctahedronGeometry(.16, 0).scale(1, 1.9, 1).translate(0, .3, 0);
+      const b = new THREE.OctahedronGeometry(.09, 0).scale(1, 1.8, 1).rotateZ(.6).translate(.11, .2, .03);
+      const c = new THREE.OctahedronGeometry(.075, 0).scale(1, 1.8, 1).rotateZ(-.7).rotateY(1.2).translate(-.08, .17, -.07);
+      return mergeGeometries([a, b, c]);
+    }),
+    make() { this.m ??= MAT.cristal(); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'capullo', name: 'Capullo', mat: 'Pómez violeta y núcleo rosa', color: '#5b40e0',
+    geo: once('capullo', () => ({
+      petal: warp(new THREE.SphereGeometry(1, 40, 28).scale(.11, .05, .3), v => { v.y += .9 * (v.z / .3) ** 2 * .06; }).translate(0, 0, .25).rotateX(-1.42),
+      core: new THREE.SphereGeometry(.07, 32, 24).translate(0, .52, 0),
+    })),
+    make() {
+      const { petal, core } = this.geo();
+      this.mp ??= MAT.violeta(3, 3); this.mc ??= MAT.rosaPetalo();
+      const g = new THREE.Group();
+      for (let k = 0; k < 5; k++) { const m = mesh(petal, this.mp); m.rotation.y = k * TAU / 5; g.add(m); }
+      g.add(mesh(core, this.mc));
+      return g;
+    },
+  },
+  // Legado
+  {
+    id: 'cuenco', name: 'Cuenco', mat: 'Malla lima', color: '#8fc31f',
+    geo: once('cuenco', () => {
+      const pts = [new THREE.Vector2(0, 0), new THREE.Vector2(.04, 0), new THREE.Vector2(.035, .08)];
+      for (let i = 0; i <= 30; i++) { const t = i / 30; pts.push(new THREE.Vector2(.035 + .21 * Math.sin(t * Math.PI / 2) ** .8, .08 + .24 * t ** 1.6)); }
+      pts.push(new THREE.Vector2(.25, .33), new THREE.Vector2(.23, .335));
+      for (let i = 30; i >= 0; i--) { const t = i / 30; pts.push(new THREE.Vector2(.012 + .2 * Math.sin(t * Math.PI / 2) ** .8, .11 + .21 * t ** 1.6)); }
+      pts.push(new THREE.Vector2(0, .11));
+      return new THREE.LatheGeometry(pts, 72);
+    }),
+    make() { this.m ??= MAT.lima(22, 8); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'corola', name: 'Corola', mat: 'Laca rosa y malla lima', color: '#ee6fdc',
+    geo: once('corola', () => {
+      const petal = new THREE.SphereGeometry(1, 40, 28);
+      petal.scale(.085, .042, .25); petal.translate(0, 0, .23); petal.rotateX(-.6);
+      return { petal, center: new THREE.SphereGeometry(.105, 48, 32).scale(1, .8, 1) };
+    }),
+    make() {
+      const { petal, center } = this.geo();
+      this.mp ??= MAT.rosaPetalo(); this.mc ??= MAT.lima(10, 5);
+      const g = new THREE.Group();
+      for (let k = 0; k < 6; k++) { const m = mesh(petal, this.mp); m.rotation.y = k * TAU / 6; g.add(m); }
+      const c = mesh(center, this.mc); c.position.y = .04; g.add(c);
+      return g;
+    },
+  },
+  // Encuentro
+  {
+    id: 'gota', name: 'Gota', mat: 'Nácar', color: '#cfc9e6',
+    geo: once('gota', () => lathe(160, y => .16 * Math.sin(Math.PI * Math.pow(y, .62)) ** 1.1, 64).translate(0, -.42, 0)),
+    make() { this.m ??= MAT.perlaLisa(); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'racimo', name: 'Racimo', mat: 'Menta, rosa y nácar', color: '#a6d42c',
+    geo: once('racimo', () => new THREE.SphereGeometry(1, 40, 28)),
+    spots: [[0, 0, 0, .1, 0], [.15, .05, .02, .075, 1], [-.13, .07, .05, .08, 2], [.03, .16, -.06, .07, 1], [-.04, -.1, .1, .07, 0], [.1, -.08, -.1, .065, 2], [-.12, -.04, -.12, .06, 1], [.05, .02, .16, .06, 2]],
+    make() {
+      this.ms ??= [MAT.menta(), MAT.rosaPetalo(), MAT.perlaLisa()];
+      const g = new THREE.Group();
+      for (const [x, y, z, r, m] of this.spots) { const s = mesh(this.geo(), this.ms[m]); s.position.set(x, y, z); s.scale.setScalar(r); g.add(s); }
+      return g;
+    },
+  },
+  // Maestría
+  {
+    id: 'vertebra', name: 'Vértebra', mat: 'Metal arenado jade', color: '#2f9e78',
+    geo: once('vertebra', () => lathe(260, y => .062 + .042 * Math.pow(.5 + .5 * Math.cos(TAU * 5 * y), .7) * (1 - .3 * y) * Math.min(1, y * 30, (1 - y) * 30) + .01, 64)),
+    make() { this.m ??= MAT.jade(3); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'cuerno', name: 'Cuerno', mat: 'Pómez musgo', color: '#5f9a2c',
+    geo: once('cuerno', () => {
+      const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(.02, .3, .03), V(.12, .62, 0), V(.2, .85, -.04), V(.16, 1, .01)]);
+      return taperTube(c, u => (.07 + .065 * smooth(.25, .85, u)) * caps(u, .05, .16), { rough: .38, freq: 7 });
+    }),
+    make() { this.m ??= MAT.musgo(5, 1.2); return mesh(this.geo(), this.m); },
+  },
+  // Renovación
+  {
+    id: 'pildora', name: 'Píldora', mat: 'Perla punteada', color: '#b9bde0',
+    geo: once('pildora', () => { const g = new THREE.CapsuleGeometry(.11, .42, 12, 40); g.rotateZ(Math.PI / 2); g.scale(1, 1, .7); return g; }),
+    make() { this.m ??= MAT.perla(10, 11); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'muda', name: 'Muda', mat: 'Laca rosa torcida', color: '#ee6fdc',
+    geo: once('muda', () => warp(new THREE.CylinderGeometry(1, 1, 1, 48, 120), v => {
+      const t = v.y + .5, w = .15 * Math.sin(Math.PI * t) ** .35 + .02, th = .04 * Math.sin(Math.PI * t) ** .35 + .008;
+      let x = v.x * w, z = v.z * th; const a = t * TAU * .8;
+      [x, z] = [x * Math.cos(a) - z * Math.sin(a), x * Math.sin(a) + z * Math.cos(a)];
+      v.set(x + .07 * Math.sin(t * TAU), (t - .5) * .62, z);
+    })),
+    make() { this.m ??= MAT.rosaPetalo(); return mesh(this.geo(), this.m); },
+  },
+  // Fecundidad
+  {
+    id: 'hoja', name: 'Lóbulo', mat: 'Malla lima', color: '#a6d42c',
+    geo: once('hoja', () => {
+      const g = new THREE.SphereGeometry(1, 64, 64);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const r0 = Math.sqrt(Math.max(1 - y * y, 1e-9)), nx = x / r0, nz = z / r0;
+        const t = (1 - y) / 2, s = Math.sin(Math.PI * t);
+        const X = nx * .3 * Math.pow(s, .85) * (1.15 - .45 * t);
+        let Z = nz * .045 * Math.pow(s, .5);
+        Z += .32 * (t - .3) ** 2 - .5 * X * X;
+        p.setXYZ(i, X, t, Z);
+      }
+      g.computeVertexNormals();
+      return g;
+    }),
+    make() { this.m ??= MAT.lima(18, 12); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'semilla', name: 'Semilla', mat: 'Laca rosa', color: '#e45fd8', floats: true,
+    geo: once('semilla', () => {
+      const g = displaced(new THREE.SphereGeometry(.26, 80, 56), v => {
+        const k = 1 + .22 * (fbm3(v.x * 2.4 + 9, v.y * 2.4, v.z * 2.4) - .5) + .12 * v.y / .26;
+        v.multiplyScalar(k); v.y *= .92;
+      });
+      const p = g.attributes.position, col = [], a = new THREE.Color(0xc23fe0), b = new THREE.Color(0xff74d8), red = new THREE.Color(0xff3f6a), c = new THREE.Color();
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        c.copy(a).lerp(b, smooth(-.2, .25, y + .1 * x));
+        const d = (x + .14) ** 2 + (y + .12) ** 2 + (z - .14) ** 2;
+        c.lerp(red, .75 * Math.exp(-d / .006));
+        col.push(c.r, c.g, c.b);
+      }
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      return g;
+    }),
+    make() { this.m ??= MAT.rosa(); return mesh(this.geo(), this.m); },
+  },
+  // Retorno
+  {
+    id: 'aguja', name: 'Aguja', mat: 'Metal arenado azul', color: '#5d73d6',
+    geo: once('aguja', () => lathe(420, y => {
+      let r = .024 * (1 - .86 * smooth(.5, 1, y));
+      if (y > .1 && y < .62 && fract(y * 9) < .14) r *= .7;
+      if (y < .08) r = Math.max(r, .046 * Math.sqrt(Math.max(0, 1 - ((y - .04) / .04) ** 2)));
+      return r;
+    }, 40)),
+    make() { this.m ??= MAT.azul(3); return mesh(this.geo(), this.m); },
+  },
+  {
+    id: 'gancho', name: 'Gancho', mat: 'Satén violeta', color: '#7563ec',
+    geo: once('gancho', () => {
+      const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(0, .35, 0), V(.02, .62, 0), V(.1, .82, 0), V(.22, .84, 0), V(.29, .7, 0), V(.28, .52, 0)]);
+      return taperTube(c, u => .026 * (1 - .75 * smooth(.55, 1, u)) * caps(u, .03, .04), { ts: 140, rs: 20 });
+    }),
+    make() { this.m ??= MAT.violetaSaten(3); return mesh(this.geo(), this.m); },
+  },
+];
+const BY = Object.fromEntries(PIECES.map(p => [p.id, p]));
+
+/* ---------- las once tensiones ---------- */
+const CONCEPTS = [
+  { id: 'memoria', name: 'Memoria', a: 'Raíz', b: 'Horizonte', A: 'placa', B: 'catalejo', role: 'estructura', bias: [5, 1.1, .3, .12, .08, .08],
+    text: 'Llegas a esta comunidad con una historia y encuentras otras que comenzaron mucho antes de ti. Acércate a ellas con atención: pueden darte raíces para mirar más lejos. Una tradición permanece viva cuando la comprendes, la interrogas y descubres qué preguntas nuevas puedes hacerle.' },
+  { id: 'arraigo', name: 'Arraigo', a: 'Arraigo', b: 'Movimiento', A: 'tocon', B: 'arco', role: 'estructura', bias: [2.5, 1.2, .6, .4, .3, .3],
+    text: 'Esta comunidad puede ofrecerte vínculos, saberes y espacios donde echar raíces. Deja que ese arraigo te ayude a descubrir una dirección propia. Lo que hoy te acoge habrá cumplido su tarea cuando puedas ir más allá sin perder lo aprendido.' },
+  { id: 'viaje', name: 'Viaje', a: 'Centro', b: 'Multiplicidad', A: 'eje', B: 'haz', role: 'estructura', bias: [.5, 1.3, 1.2, 1, .8, .8],
+    text: 'Desde el lugar que ocupas, puedes emprender un viaje entre formas distintas de comprender el mundo. Cruza las fronteras entre la ciencia, el arte, la técnica y la experiencia cotidiana; escucha lo que cada una alcanza a ver. El árbol conecta mundos porque permanece abierto a todos ellos.' },
+  { id: 'umbral', name: 'Umbral', a: 'Interioridad', b: 'Expresión', A: 'menta', B: 'ojal', role: 'nudo',
+    text: 'Lo que aprendes modifica algo íntimo: tu manera de escuchar, de juzgar y de reconocer lo que importa. Dale tiempo a esa transformación y encuentra después cómo compartirla. Al cruzar ese umbral, una comprensión interior se convierte en palabra, obra o acción para otros.' },
+  { id: 'asombro', name: 'Asombro', a: 'Conocimiento', b: 'Misterio', A: 'cristal', B: 'capullo', role: 'remate',
+    text: 'Busca la mayor claridad que puedas alcanzar y di con precisión lo que sabes. Conserva también la capacidad de asombro ante lo que aún no comprendes. Una pregunta sostenida con honestidad puede acompañarte más lejos que una respuesta apresurada.' },
+  { id: 'legado', name: 'Legado', a: 'Recepción', b: 'Creación', A: 'cuenco', B: 'corola', role: 'remate',
+    text: 'Recibes conocimientos construidos por muchas generaciones. Estúdialos con rigor para reconocer tanto su fuerza como sus límites. Tu contribución comienza cuando entras en esa conversación con una voz capaz de continuarla y transformarla.' },
+  { id: 'encuentro', name: 'Encuentro', a: 'Singularidad', b: 'Comunidad', A: 'gota', B: 'racimo', role: 'nudo',
+    text: 'Habrá ideas que tendrás que pensar por tu cuenta y decisiones que nadie podrá tomar en tu lugar. Aun entonces, recuerda las voces que te han ayudado a llegar hasta allí. Cultiva una voz propia que sepa escuchar, responder y dejar espacio para otras.' },
+  { id: 'maestria', name: 'Maestría', a: 'Disciplina', b: 'Libertad', A: 'vertebra', B: 'cuerno', role: 'estructura', bias: [.3, 1, 1.3, 1.5, 1.6, 1.6],
+    text: 'La lectura cuidadosa, la práctica y la revisión pueden parecer lentas cuando deseas llegar pronto a una idea. Habita ese trabajo: con el tiempo te dará posibilidades de pensamiento que hoy no tienes. Pregunta también por el sentido de cada regla, para que la disciplina siga sirviendo a tu libertad de crear.' },
+  { id: 'renovacion', name: 'Renovación', a: 'Permanencia', b: 'Cambio', A: 'pildora', B: 'muda', role: 'nudo',
+    text: 'A lo largo de tu vida universitaria cambiarán algunas de tus certezas. Puedes dejar caer una idea y conservar, al mismo tiempo, la pregunta que la hizo valiosa. Aprende a reconocer qué merece echar raíces y qué necesita transformarse para que sigas creciendo.' },
+  { id: 'fecundidad', name: 'Fecundidad', a: 'Obra', b: 'Porvenir', A: 'hoja', B: 'semilla', role: 'remate',
+    text: 'Dedica cuidado a lo que haces, sabiendo que una obra fecunda tendrá una vida fuera de tus manos. Otros podrán usarla, discutirla o llevarla en direcciones que no imaginaste. Comparte tus frutos de modo que también puedan convertirse en semillas.' },
+  { id: 'retorno', name: 'Retorno', a: 'Ascenso', b: 'Regreso', A: 'aguja', B: 'gancho', role: 'filamento',
+    text: 'El estudio puede llevarte muy lejos de lo familiar. Déjate conducir por ideas difíciles y perspectivas nuevas; después vuelve a mirar el mundo del que partiste. Tal vez encuentres las mismas personas y los mismos problemas, pero puedas responderles con una comprensión más profunda y un cuidado más consciente.' },
+];
+CONCEPTS.forEach((c, i) => c.n = String(i + 1).padStart(2, '0'));
+const CBY = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
+const ROLES = [
+  { key: 'estructura', label: 'Estructura', note: 'tronco y ramas' },
+  { key: 'nudo', label: 'Nudos', note: 'en las uniones' },
+  { key: 'remate', label: 'Remates', note: 'en las puntas' },
+  { key: 'filamento', label: 'Filamentos', note: 'puntas de copa y raíz' },
+];
+
+/* ---------- estado ---------- */
+const all = v => Object.fromEntries(CONCEPTS.map(c => [c.id, v]));
+const PRESETS = { 'Origen': all(0), 'Equilibrio': all(50), 'Apertura': all(100) };
+const state = { mix: all(50), depth: 4, branching: 2, spread: 44, seed: 2026 };
+
+/* ---------- render ---------- */
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.setClearColor(0x000000, 0);
+renderer.autoClear = false;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), .04).texture;
+
+function studio(scene) {
+  scene.environment = env;
+  scene.add(new THREE.HemisphereLight(0xe4e6ff, 0x5a4bc8, .9));
+  const key = new THREE.DirectionalLight(0xfff6ee, 2.2); key.position.set(-3, 5, 4); scene.add(key);
+  const rim = new THREE.DirectionalLight(0x7d6bff, 2.6); rim.position.set(4, 2, -4); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0xb8c4ff, .7); fill.position.set(3, -2, 3); scene.add(fill);
+  return key;
+}
+
+/* catálogo: una escena; cada recuadro muestra una sola pieza */
+const catScene = new THREE.Scene(); studio(catScene);
+const catCam = new THREE.PerspectiveCamera(30, 1, .05, 50);
+catCam.position.set(0, .35, 3.4); catCam.lookAt(0, 0, 0);
+function catalogPivot(piece, i) {
+  const pivot = new THREE.Group(), obj = piece.make();
+  const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+  obj.position.sub(ctr);
+  const holder = new THREE.Group(); holder.add(obj); holder.scale.setScalar(1.3 / Math.max(size.x, size.y, size.z));
+  pivot.add(holder); pivot.rotation.set(.18, i * .7, 0); pivot.visible = false;
+  catScene.add(pivot);
+  return pivot;
+}
+
+const cardsEl = document.getElementById('cards');
+const views = [];
+const cards = CONCEPTS.map((c, i) => {
+  const A = BY[c.A], B = BY[c.B];
+  const el = document.createElement('article');
+  el.className = 'card'; el.tabIndex = 0;
+  el.setAttribute('aria-expanded', 'false');
+  el.style.setProperty('--ca', A.color); el.style.setProperty('--cb', B.color);
+  el.innerHTML = `
+    <div class="top"><span class="num">${c.n}</span><h3>${c.name}</h3><span class="role">${c.role}</span></div>
+    <div class="poles">
+      <figure><div class="view"></div><figcaption class="fa"><b>${c.a}</b><span>${A.name}</span></figcaption></figure>
+      <figure><div class="view"></div><figcaption class="fb"><b>${c.b}</b><span>${B.name}</span></figcaption></figure>
+    </div>
+    <div class="tbar"></div>
+    <div class="desc"><div><p>${c.text}</p><span class="pair">${c.a} ↔ ${c.b} · ${A.mat} / ${B.mat}</span></div></div>
+    <span class="more">Leer</span>`;
+  cardsEl.appendChild(el);
+  const card = { c, el, hover: false, fa: el.querySelector('.fa'), fb: el.querySelector('.fb') };
+  const [va, vb] = el.querySelectorAll('.view');
+  views.push({ el: va, pivot: catalogPivot(A, i * 2), card }, { el: vb, pivot: catalogPivot(B, i * 2 + 1), card });
+  el.addEventListener('pointerenter', () => card.hover = true);
+  el.addEventListener('pointerleave', () => card.hover = false);
+  const go = () => openCard(card);
+  el.addEventListener('click', go);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  return card;
+});
+function openCard(card) {
+  const open = !card.el.classList.contains('open');
+  for (const k of cards) { k.el.classList.toggle('open', k === card && open); k.el.setAttribute('aria-expanded', k === card && open); }
+  if (open) {
+    setTimeout(() => card.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 360);
+    const { row } = rows[card.c.id];
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 900);
+  }
+}
+
+/* árbol */
+const stageEl = document.getElementById('stage');
+const treeScene = new THREE.Scene(); const key = studio(treeScene);
+key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -.0004; key.shadow.normalBias = .02; key.shadow.radius = 6;
+treeScene.add(key.target);
+const treeCam = new THREE.PerspectiveCamera(35, 1, .05, 200);
+treeCam.position.set(3.5, 3, 9);
+const controls = new OrbitControls(treeCam, stageEl);
+controls.enableDamping = true; controls.dampingFactor = .07;
+controls.autoRotate = true; controls.autoRotateSpeed = .7;
+controls.target.set(0, 2, 0);
+const GROUND_POLAR = Math.PI / 2 - .04;
+controls.maxPolarAngle = GROUND_POLAR;
+
+// copa arriba del suelo; la raíz es la misma construcción reflejada en y = 0
+const tree = new THREE.Group(); treeScene.add(tree);
+const rootWrap = new THREE.Group(); rootWrap.scale.y = -1; rootWrap.visible = false; treeScene.add(rootWrap);
+
+// suelo: disco con borde difuso que se vuelve translúcido al mostrar la raíz
+const groundAlpha = tex(canvasOf(256, (g, n) => {
+  const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+  gr.addColorStop(0, '#fff'); gr.addColorStop(.62, '#fff'); gr.addColorStop(1, '#000');
+  g.fillStyle = gr; g.fillRect(0, 0, n, n);
+}), 1);
+groundAlpha.wrapS = groundAlpha.wrapT = THREE.ClampToEdgeWrapping;
+function makeGround(scene, bump = 14) {
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0xE6E6E6, roughness: .85, metalness: .05, transparent: true, opacity: .96, side: THREE.DoubleSide, alphaMap: groundAlpha, bumpMap: tex(CANVAS.arenado, bump), bumpScale: .5 });
+  const mesh = new THREE.Mesh(new THREE.CircleGeometry(1, 128).rotateX(-Math.PI / 2), mat);
+  mesh.receiveShadow = true; mesh.renderOrder = 2; scene.add(mesh);
+  const rim = new THREE.Mesh(new THREE.RingGeometry(.995, 1, 160).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3b2fa8, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  rim.position.y = .002; mesh.add(rim);
+  return { mesh, mat, rim, opacity: .96 };
+}
+function fadeGround(g) {
+  g.opacity = lerp(g.opacity, showRoot ? .32 : .96, .08);
+  g.mat.opacity = g.opacity; g.mat.depthWrite = !showRoot;
+  g.rim.material.opacity = lerp(g.rim.material.opacity, showRoot ? .35 : 0, .08);
+}
+const G0 = makeGround(treeScene), ground = G0.mesh;
+
+let pieces = [], growStart = 0, rootStart = 0, fit = null, fits = null;
+let showRoot = false;
+
+function pick(arr, rnd, w) {
+  const ws = arr.map(w), sum = ws.reduce((a, b) => a + b, 0);
+  let r = rnd() * sum;
+  for (let i = 0; i < arr.length; i++) { r -= ws[i]; if (r <= 0) return arr[i]; }
+  return arr[arr.length - 1];
+}
+const ROLE = role => CONCEPTS.filter(c => c.role === role);
+// el deslizador decide qué polo ocupa cada lugar; r es fijo por lugar, así que mover
+// el deslizador cambia piezas una a una sin alterar la forma del árbol
+const sphereOf = (...objs) => {
+  const box = new THREE.Box3();
+  objs.forEach(o => { o.updateMatrixWorld(true); box.expandByObject(o); });
+  return box.getBoundingSphere(new THREE.Sphere());
+};
+
+// Construye el árbol completo en `target`. Con la misma semilla y las mismas tensiones,
+// la copa y la raíz salen idénticas. P lleva semilla, forma y tensiones (el estado o un árbol guardado).
+function build(target, isRoot, counts, P = state, list = pieces) {
+  const rnd = mulberry32(P.seed), hair = mulberry32(P.seed * 31 + 7);
+  const polar = (c, r) => r < P.mix[c.id] / 100 ? c.B : c.A;
+  const STRUCT = ROLE('estructura'), NODES = ROLE('nudo'), TIPS = ROLE('remate'), RET = CBY.retorno;
+  const MAX = 1600;
+  let n = 0;
+
+  const perp = (dir, az) => {
+    const a = Math.abs(dir.y) < .9 ? UP : V(1, 0, 0);
+    const p1 = new THREE.Vector3().crossVectors(dir, a).normalize(), p2 = new THREE.Vector3().crossVectors(dir, p1);
+    return p1.multiplyScalar(Math.cos(az)).addScaledVector(p2, Math.sin(az));
+  };
+  function place(id, pos, dir, scale, depth, extra = {}) {
+    const r = extra.r || rnd, obj = BY[id].make();
+    obj.position.copy(pos);
+    obj.quaternion.setFromUnitVectors(UP, dir);
+    obj.rotateY(r() * TAU);
+    obj.userData = { s: scale, root: isRoot, delay: depth * .22 + r() * .15 + (extra.late || 0), base: obj.position.clone(), dir: dir.clone(), float: extra.float, phase: r() * TAU };
+    obj.scale.setScalar(scale);
+    obj.traverse(m => { if (m.isMesh) m.castShadow = !isRoot; });
+    target.add(obj); list.push(obj); n++;
+    counts[id] = (counts[id] || 0) + 1;
+  }
+  function filaments(end, dir, L, depth) {
+    let k = (hair() < .55 ? 1 : 0) + (hair() < .22 ? 1 : 0);
+    while (k--) {
+      const d = dir.clone().applyAxisAngle(perp(dir, hair() * TAU), (hair() - .3) * .6);
+      place(polar(RET, hair()), end, d, L * (.85 + .4 * hair()), depth + 1, { r: hair, late: .15 });
+    }
+  }
+  function grow(pos, dir, L, depth) {
+    if (n > MAX) return;
+    const c = pick(STRUCT, rnd, s => s.bias[Math.min(depth, 5)]);
+    place(polar(c, rnd()), pos, dir, L, depth);
+    const end = pos.clone().addScaledVector(dir, L * .96);
+    if (depth >= P.depth) {
+      if (rnd() < .85) {
+        const t = pick(TIPS, rnd, () => 1), id = polar(t, rnd()), it = BY[id], size = L * (.8 + .35 * rnd());
+        const at = it.floats ? end.clone().addScaledVector(dir, size * .45) : end;
+        place(id, at, dir, size, depth + 1, { float: it.floats, late: .1 });
+      }
+      filaments(end, dir, L, depth);
+      return;
+    }
+    if (rnd() < .7) {
+      const nd = pick(NODES, rnd, () => 1), id = polar(nd, rnd()), it = BY[id], size = L * (.6 + .3 * rnd());
+      place(id, end, it.sideways ? perp(dir, rnd() * TAU) : dir, size, depth + .6);
+    }
+    let kids = P.branching + (rnd() < .3 ? 1 : 0) - (depth > 0 && rnd() < .25 ? 1 : 0);
+    kids = Math.max(1, kids);
+    const spread = THREE.MathUtils.degToRad(P.spread);
+    const az0 = rnd() * TAU;
+    for (let k = 0; k < kids; k++) {
+      const az = az0 + k / kids * TAU + (rnd() - .5) * .6;
+      const tilt = spread * (.65 + .6 * rnd()) * (kids === 1 ? .4 : 1);
+      const nd = dir.clone().applyAxisAngle(perp(dir, az), tilt);
+      nd.y += .22; nd.normalize();
+      grow(end, nd, L * (.72 + .14 * rnd()), depth + 1);
+    }
+  }
+  grow(V(0, 0, 0), UP.clone(), 1.55, 0);
+}
+
+function generate(animate) {
+  tree.clear(); rootWrap.clear(); pieces = [];
+  const crownCounts = {}, rootCounts = {};
+  build(tree, false, crownCounts);
+  build(rootWrap, true, rootCounts);
+
+  // encuadre, suelo y sombra con las escalas finales
+  const crown = sphereOf(tree), whole = sphereOf(tree, rootWrap);
+  const box = new THREE.Box3().setFromObject(tree);
+  const reach = Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z);
+  ground.scale.setScalar(Math.max(1.8, reach * 1.35));
+  const sc = key.shadow.camera, R = crown.radius * 1.3;
+  sc.left = sc.bottom = -R; sc.right = sc.top = R; sc.near = .1; sc.far = R * 6; sc.updateProjectionMatrix();
+  key.target.position.copy(crown.center);
+  key.position.copy(crown.center).add(V(-3, 5, 4).setLength(R * 2.5));
+
+  fits = { crown, whole };
+  refit();
+  const now = performance.now();
+  if (animate) { growStart = now; rootStart = now + 400; pieces.forEach(o => o.scale.setScalar(1e-4)); }
+  else growStart = rootStart = -1e9;
+
+  updateStats(crownCounts);
+}
+function refit() {
+  const s = showRoot ? fits.whole : fits.crown;
+  fit = { center: s.center.clone(), radius: s.radius, until: performance.now() + 1400 };
+}
+function setRoot(on) {
+  showRoot = on;
+  rootWrap.visible = on;
+  controls.maxPolarAngle = on ? Math.PI : GROUND_POLAR;
+  if (on) { rootStart = performance.now(); rootWrap.children.forEach(o => o.scale.setScalar(1e-4)); }
+  document.querySelectorAll('#btnRoot, .rootToggle').forEach(b => b.setAttribute('aria-pressed', on));
+  refit();
+  forestRoots(on);
+}
+
+/* ---------- interfaz ---------- */
+const rows = {};
+const groupsEl = document.getElementById('groups');
+for (const role of ROLES) {
+  const g = document.createElement('div'); g.className = 'group';
+  g.innerHTML = `<h3><span>${role.label}</span><span>${role.note}</span></h3>`;
+  for (const c of ROLE(role.key)) {
+    const A = BY[c.A], B = BY[c.B];
+    const row = document.createElement('label'); row.className = 'trow';
+    row.dataset.ca = A.color; row.dataset.cb = B.color;
+    row.innerHTML = `<div class="rt"><span class="nm"><small>${c.n}</small>${c.name}</span><output></output></div>
+      <input type="range" min="0" max="100" step="1" aria-label="${c.name}: de ${c.a} a ${c.b}">
+      <div class="pl"><span>${c.a}</span><span>${c.b}</span></div>`;
+    const input = row.querySelector('input'), out = row.querySelector('output'), [pa, pb] = row.querySelectorAll('.pl span');
+    input.addEventListener('input', () => { state.mix[c.id] = +input.value; syncRow(c.id); schedule(false); });
+    rows[c.id] = { row, input, out, pa, pb };
+    g.appendChild(row);
+  }
+  groupsEl.appendChild(g);
+}
+const weight = v => .35 + .65 * v / 100;
+function syncRow(id) {
+  const { input, out, pa, pb } = rows[id], v = state.mix[id];
+  input.value = v; out.textContent = `${100 - v} · ${v}`;
+  pa.style.opacity = weight(100 - v); pb.style.opacity = weight(v);
+  rows[id].row.style.setProperty('--track', `linear-gradient(to right, ${rows[id].row.dataset.ca} ${v}%, ${rows[id].row.dataset.cb} ${v}%)`);
+  const card = cards.find(k => k.c.id === id);
+  card.el.style.setProperty('--p', v + '%');
+  card.fa.style.opacity = weight(100 - v); card.fb.style.opacity = weight(v);
+}
+function syncAll() { CONCEPTS.forEach(c => syncRow(c.id)); }
+
+const shapeEl = document.getElementById('shape');
+const shapeSyncs = [];
+const SHAPE = [
+  { key: 'depth', label: 'Profundidad', min: 2, max: 5, step: 1, fmt: v => v },
+  { key: 'branching', label: 'Ramificación', min: 1, max: 4, step: 1, fmt: v => v },
+  { key: 'spread', label: 'Apertura', min: 10, max: 75, step: 1, fmt: v => v + '°' },
+];
+for (const s of SHAPE) {
+  const row = document.createElement('label'); row.className = 'srow';
+  row.innerHTML = `<span class="nm">${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${s.label}"><output></output>`;
+  const input = row.querySelector('input'), out = row.querySelector('output');
+  const sync = () => {
+    const p = (state[s.key] - s.min) / (s.max - s.min) * 100;
+    input.value = state[s.key]; out.textContent = s.fmt(state[s.key]);
+    input.style.setProperty('--track', `linear-gradient(to right, #00E245 ${p}%, #D4D4D4 ${p}%)`);
+  };
+  input.addEventListener('input', () => { state[s.key] = +input.value; sync(); schedule(false); });
+  sync(); shapeSyncs.push(sync); shapeEl.appendChild(row);
+}
+
+const presetsEl = document.getElementById('presets');
+for (const name of [...Object.keys(PRESETS), 'Azar']) {
+  const b = document.createElement('button'); b.textContent = name;
+  b.addEventListener('click', () => {
+    state.mix = name === 'Azar' ? Object.fromEntries(CONCEPTS.map(c => [c.id, Math.round(Math.random() * 100)])) : { ...PRESETS[name] };
+    syncAll(); generate(true);
+  });
+  presetsEl.appendChild(b);
+}
+
+const SYL = ['ar', 'bo', 'li', 'na', 've', 'ro', 'sa', 'mi', 'cu', 'te', 'lo', 'ra', 'en', 'pi', 'da'];
+function nameFor(seed) { const r = mulberry32(seed * 7 + 3); let s = ''; const n = 2 + Math.floor(r() * 2); for (let i = 0; i < n; i++) s += SYL[Math.floor(r() * SYL.length)]; return s[0].toUpperCase() + s.slice(1); }
+function updateStats(counts) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  document.getElementById('count').textContent = `${total} piezas en la copa · ${total} en la raíz`;
+  document.getElementById('seedOut').textContent = `semilla ${state.seed}`;
+  document.getElementById('treeName').textContent = nameFor(state.seed);
+  document.getElementById('mixbar').innerHTML = PIECES.filter(p => counts[p.id]).map(p =>
+    `<i style="flex-grow:${counts[p.id] / Math.max(total, 1)};background:${p.color}" title="${p.name}: ${counts[p.id]}"></i>`).join('');
+}
+
+let pending = false;
+function schedule(animate) { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; generate(animate); }); }
+const regrow = () => { state.seed = Math.floor(Math.random() * 99999); generate(true); };
+document.getElementById('btnGrow').addEventListener('click', regrow);
+// los botones viven dentro del escenario: que el arrastre de la cámara no les robe el clic
+stageEl.querySelector('.tr').addEventListener('pointerdown', e => e.stopPropagation());
+document.getElementById('btnRoot').addEventListener('click', () => setRoot(!showRoot));
+const spinBtn = document.getElementById('btnSpin');
+spinBtn.addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute('aria-pressed', controls.autoRotate); });
+addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea')) return;
+  if (dlg.open) return;
+  if ((e.key === 'r' || e.key === 'R') && VIEW === 'taller') regrow();
+  if ((e.key === 'g' || e.key === 'G') && VIEW === 'taller') { e.preventDefault(); askSave(); }
+  if (e.key === 't' || e.key === 'T') setRoot(!showRoot);
+});
+stageEl.addEventListener('pointerdown', () => { if (fit) fit.until = 0; });
+stageEl.addEventListener('wheel', () => { if (fit) fit.until = 0; }, { passive: true });
+
+// copia del escenario con su fondo; maxW reduce la imagen (miniaturas del bosque)
+function snapshot(maxW = Infinity, type = 'image/png') {
+  frame(performance.now());
+  const r = stageEl.getBoundingClientRect(), dpr = renderer.getPixelRatio();
+  const k = Math.min(1, maxW / (r.width * dpr));
+  const out = document.createElement('canvas'); out.width = Math.round(r.width * dpr * k); out.height = Math.round(r.height * dpr * k);
+  const g = out.getContext('2d');
+  g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, out.width, out.height);
+  g.drawImage(renderer.domElement, r.left * dpr, r.top * dpr, r.width * dpr, r.height * dpr, 0, 0, out.width, out.height);
+  return out.toDataURL(type, .82);
+}
+document.getElementById('btnPng').addEventListener('click', () => {
+  const a = document.createElement('a'); a.download = `arbol-${nameFor(state.seed).toLowerCase()}-${state.seed}.png`; a.href = snapshot(); a.click();
+});
+
+/* ---------- bosque: árboles guardados ---------- */
+const STORE = 'once-tensiones-bosque';
+let forest = [];
+try { forest = JSON.parse(localStorage.getItem(STORE)) || []; } catch { forest = []; }
+function persist() {
+  try { localStorage.setItem(STORE, JSON.stringify(forest)); return true; }
+  catch { return false; }
+}
+const forestStageEl = document.getElementById('forestStage');
+const forestScene = new THREE.Scene(); const fkey = studio(forestScene);
+fkey.castShadow = true; fkey.shadow.mapSize.set(4096, 4096); fkey.shadow.bias = -.0004; fkey.shadow.normalBias = .03; fkey.shadow.radius = 5;
+forestScene.add(fkey.target);
+const forestCam = new THREE.PerspectiveCamera(35, 1, .1, 600);
+forestCam.position.set(12, 15, 22);
+const fcontrols = new OrbitControls(forestCam, forestStageEl);
+fcontrols.enableDamping = true; fcontrols.dampingFactor = .07;
+fcontrols.autoRotate = true; fcontrols.autoRotateSpeed = .25;
+fcontrols.maxPolarAngle = GROUND_POLAR;
+// suelo blanco hueso con un relieve suave que se desvanece en el horizonte
+const relief = (x, z) => 1.9 * (fbm3(x * .07 + 11, 3.7, z * .07 - 5, 4) - .5) * 2 + .22 * Math.sin(x * .55 + Math.cos(z * .31) * 2) * Math.sin(z * .47);
+const grassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff, vertexColors: true, bumpMap: tex(CANVAS.arenado, 1), bumpScale: .6,
+  roughness: .9, metalness: 0,
+  alphaMap: groundAlpha, transparent: true, opacity: .96, side: THREE.DoubleSide,
+});
+const GF = { mesh: new THREE.Mesh(new THREE.BufferGeometry(), grassMat), mat: grassMat, rim: { material: { opacity: 0 } }, opacity: .96 };
+GF.mesh.receiveShadow = true; GF.mesh.renderOrder = 2; forestScene.add(GF.mesh);
+let terrainSize = 0;
+function terrainGeo(size, lift = 0) {
+  const seg = 300, g = new THREE.PlaneGeometry(size, size, seg, seg).rotateX(-Math.PI / 2);
+  const p = g.attributes.position, col = [], lo = new THREE.Color(0xD4D4D4), hi = new THREE.Color(0xFFFFFF), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), y = relief(x, z);
+    p.setY(i, y + lift);
+    c.copy(lo).lerp(hi, smooth(-1.1, 1.2, y)); col.push(c.r, c.g, c.b);
+  }
+  if (!lift) g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+function shapeTerrain(size) {
+  if (Math.abs(size - terrainSize) < 1) return;
+  terrainSize = size;
+  GF.mesh.geometry.dispose(); GF.mesh.geometry = terrainGeo(size);
+  grid.geometry.dispose(); grid.geometry = terrainGeo(size, .03);
+  const rep = size / 6;
+  grassMat.bumpMap.repeat.set(rep * 2, rep * 2);
+}
+
+// cuadrícula punteada que se desvanece a lo lejos: cada árbol ocupa un cuadrante
+const CELL = 7;
+const gridMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  uniforms: { cell: { value: CELL }, dash: { value: .42 }, fadeR: { value: 60 }, color: { value: new THREE.Color(0xbdbcb8) }, opacity: { value: .75 } },
+  vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `
+    varying vec3 vW; uniform float cell, dash, fadeR, opacity; uniform vec3 color;
+    void main(){
+      vec2 p = vW.xz / cell + .5;                       // líneas en los bordes de cada cuadrante
+      vec2 f = abs(fract(p - .5) - .5), w = fwidth(p);
+      vec2 l = 1. - smoothstep(w * .6, w * 1.6, f);
+      float a = max(l.x * step(.5, fract(vW.z / dash)), l.y * step(.5, fract(vW.x / dash)));
+      a *= 1. - smoothstep(fadeR * .45, fadeR, length(vW.xz));
+      if (a < .01) discard;
+      gl_FragColor = vec4(color, a * opacity);
+    }`,
+});
+const grid = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), gridMat);
+grid.renderOrder = 3; forestScene.add(grid);
+
+// cuadrantes en espiral cuadrada desde el centro: (0,0), (1,0), (1,1), (0,1), (-1,1)…
+function spiralCell(i) {
+  let x = 0, y = 0, dx = 1, dy = 0, len = 1, k = 0;
+  while (k < i) {
+    for (let r = 0; r < 2 && k < i; r++) {
+      for (let s = 0; s < len && k < i; s++) { x += dx; y += dy; k++; }
+      [dx, dy] = [-dy, dx];
+    }
+    len++;
+  }
+  return [x, y];
+}
+
+const forestGroup = new THREE.Group(); forestScene.add(forestGroup);
+let forestTrees = [], forestDirty = true, ffit = null, selected = null;
+const labelsEl = document.getElementById('flabels');
+
+// franja con los colores de las piezas de ese árbol, en proporción, pintada sobre el suelo de su cuadrante
+// (una calcomanía plana que sigue el relieve, no un volumen)
+function stripe(counts, cx, cz) {
+  const L = CELL * .42, W = .2, x0 = cx * CELL + CELL / 2 - .45 - L, z = cz * CELL + CELL / 2 - .45;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 8;
+  const g = c.getContext('2d');
+  let x = 0;
+  for (const p of PIECES) {
+    if (!counts[p.id]) continue;
+    const w = c.width * counts[p.id] / total;
+    g.fillStyle = p.color; g.fillRect(Math.floor(x), 0, Math.ceil(w) + 1, c.height); x += w;
+  }
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+  const geo = new THREE.PlaneGeometry(L, W, 32, 1).rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const wx = pos.getX(i) + x0 + L / 2, wz = pos.getZ(i) + z;
+    pos.setXYZ(i, wx, relief(wx, wz) + .035, wz);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ map, roughness: .9, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.renderOrder = 4;
+  return m;
+}
+function plant() {
+  forestGroup.clear(); labelsEl.innerHTML = ''; forestTrees = [];
+  const now = performance.now();
+  forest.forEach((t, i) => {
+    const holder = new THREE.Group(), crown = new THREE.Group(), root = new THREE.Group();
+    root.scale.y = -1; root.visible = showRoot;
+    const list = [];
+    const counts = {};
+    build(crown, false, counts, t, list); build(root, true, {}, t, list);
+    holder.add(crown, root);
+    holder.rotation.y = (t.seed % 628) / 100;
+    // que la copa quepa en su cuadrante
+    const local = new THREE.Box3().setFromObject(crown);
+    const half = Math.max(-local.min.x, local.max.x, -local.min.z, local.max.z);
+    holder.scale.setScalar(Math.min(1, CELL * .44 / half));
+    const [cx, cz] = spiralCell(i);
+    holder.position.set(cx * CELL, relief(cx * CELL, cz * CELL) - .04, cz * CELL);
+    forestGroup.add(holder);
+    forestGroup.add(stripe(counts, cx, cz));
+    holder.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(crown);
+    const label = document.createElement('div');
+    label.className = 'flabel'; label.textContent = t.name;
+    label.addEventListener('pointerdown', e => e.stopPropagation());
+    label.addEventListener('click', () => select(t.id, true, true));
+    labelsEl.appendChild(label);
+    const f = {
+      t, holder, crown, root, label, list, cell: [cx, cz],
+      top: V(holder.position.x, box.max.y + .25, holder.position.z),
+      sCrown: sphereOf(crown), sAll: sphereOf(crown, root),
+      cs: now + i * 140, rs: now + i * 140 + 400, done: false,
+    };
+    list.forEach(o => o.scale.setScalar(1e-4));
+    forestTrees.push(f);
+  });
+  const reach = forestTrees.reduce((m, f) => Math.max(m, (Math.max(Math.abs(f.cell[0]), Math.abs(f.cell[1])) + 1) * CELL), CELL);
+  const fadeR = Math.max(70, reach * 3);
+  shapeTerrain(Math.ceil(fadeR * 2.2 / 10) * 10);
+  gridMat.uniforms.fadeR.value = fadeR;
+  const sc = fkey.shadow.camera, R = reach * 1.15;
+  sc.left = sc.bottom = -R; sc.right = sc.top = R; sc.near = .1; sc.far = R * 8; sc.updateProjectionMatrix();
+  fkey.target.position.set(0, 0, 0); fkey.position.copy(V(-3, 5, 4).setLength(R * 3));
+  forestDirty = false;
+  fitForest();
+  applySearch();
+}
+// vuelve a crecer un árbol del bosque (o solo su raíz)
+function regrowTree(f, rootOnly) {
+  const now = performance.now();
+  if (!rootOnly) f.cs = now;
+  f.rs = rootOnly ? now : now + 400;
+  f.list.forEach(o => { if (!rootOnly || o.userData.root) o.scale.setScalar(1e-4); });
+  f.done = false;
+}
+function forestRoots(on) {
+  forestTrees.forEach(f => { f.root.visible = on; if (on) regrowTree(f, true); });
+  fcontrols.maxPolarAngle = on ? Math.PI : GROUND_POLAR;
+  if (VIEW === 'bosque') (selected ? select(selected, true) : fitForest());
+}
+function fitForest() {
+  selected = null; markSelected();
+  const ss = forestTrees.map(f => showRoot ? f.sAll : f.sCrown);
+  const box = new THREE.Box3(); ss.forEach(s => box.expandByPoint(s.center.clone().addScalar(s.radius)).expandByPoint(s.center.clone().subScalar(s.radius)));
+  const s = ss.length ? box.getBoundingSphere(new THREE.Sphere()) : new THREE.Sphere(V(0, 1.5, 0), CELL);
+  ffit = { center: s.center, radius: s.radius * .68, until: performance.now() + 1600 };
+}
+function select(id, focus, grow) {
+  selected = id; markSelected();
+  const f = forestTrees.find(f => f.t.id === id);
+  if (!f || !focus) return;
+  if (grow) regrowTree(f);
+  const s = showRoot ? f.sAll : f.sCrown;
+  ffit = { center: s.center.clone(), radius: s.radius * 1.15, until: performance.now() + 1600 };
+  fcontrols.autoRotate = false;
+}
+function markSelected() {
+  forestTrees.forEach(f => f.label.classList.toggle('on', f.t.id === selected));
+  document.querySelectorAll('.ftree').forEach(el => el.classList.toggle('on', el.dataset.id === selected));
+  const t = forest.find(t => t.id === selected);
+  document.getElementById('forestTitle').textContent = t ? t.name : `${forest.length} ${forest.length === 1 ? 'árbol' : 'árboles'}`;
+}
+
+const listEl = document.getElementById('forestList');
+function renderList() {
+  document.getElementById('forestCount').textContent = forest.length;
+  document.getElementById('forestTag').textContent = forest.length;
+  document.getElementById('forestEmpty').hidden = forest.length > 0;
+  listEl.innerHTML = '';
+  for (const t of [...forest].reverse()) {
+    const el = document.createElement('article');
+    el.className = 'ftree'; el.dataset.id = t.id;
+    const date = new Date(t.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+    const bar = CONCEPTS.map(c => `<i style="flex-grow:1;background:${t.mix[c.id] >= 50 ? BY[c.B].color : BY[c.A].color}" title="${c.name}: ${t.mix[c.id] >= 50 ? c.b : c.a}"></i>`).join('');
+    el.innerHTML = `${t.thumb ? `<img alt="" src="${t.thumb}">` : '<span class="ph"></span>'}<div><input aria-label="Nombre del árbol" maxlength="40"><div class="meta">${date} · semilla ${t.seed}</div><div class="mixbar">${bar}</div>
+      <div class="acts"><button class="see">Ver</button><button class="open">Abrir en el taller</button><button class="del">Quitar</button></div></div>`;
+    const input = el.querySelector('input'); input.value = t.name;
+    input.addEventListener('change', () => {
+      t.name = input.value.trim() || t.name; input.value = t.name; persist();
+      const f = forestTrees.find(f => f.t.id === t.id); if (f) f.label.textContent = t.name;
+      markSelected();
+    });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+    el.querySelector('.see').addEventListener('click', () => select(t.id, true, true));
+    el.querySelector('.open').addEventListener('click', () => openInTaller(t));
+    const del = el.querySelector('.del');
+    del.addEventListener('click', () => {
+      if (!del.classList.contains('sure')) {
+        del.classList.add('sure'); del.textContent = '¿Quitar?';
+        setTimeout(() => { del.classList.remove('sure'); del.textContent = 'Quitar'; }, 3000);
+        return;
+      }
+      forest = forest.filter(x => x !== t); persist(); renderList(); plant();
+    });
+    listEl.appendChild(el);
+  }
+  markSelected();
+  applySearch();
+}
+// búsqueda sin distinguir mayúsculas ni tildes
+const fold = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const searchEl = document.getElementById('forestSearch');
+function applySearch() {
+  const q = fold(searchEl.value.trim());
+  let n = 0;
+  listEl.querySelectorAll('.ftree').forEach(el => {
+    const t = forest.find(t => t.id === el.dataset.id), hit = !q || fold(t.name).includes(q);
+    el.hidden = !hit; if (hit) n++;
+  });
+  forestTrees.forEach(f => f.label.classList.toggle('dim', !!q && !fold(f.t.name).includes(q)));
+  document.getElementById('searchCount').textContent = q ? `${n} de ${forest.length}` : '';
+  document.getElementById('noFound').hidden = !q || n > 0;
+  return q ? forest.filter(t => fold(t.name).includes(q)) : [];
+}
+searchEl.addEventListener('input', applySearch);
+searchEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const hits = applySearch(); if (hits.length) select(hits[hits.length - 1].id, true, true); }
+  if (e.key === 'Escape') { searchEl.value = ''; applySearch(); }
+});
+function openInTaller(t) {
+  state.mix = { ...all(50), ...t.mix }; state.seed = t.seed; state.depth = t.depth; state.branching = t.branching; state.spread = t.spread;
+  syncAll(); shapeSyncs.forEach(f => f()); generate(true);
+  setView('taller');
+}
+
+const dlg = document.getElementById('saveDlg'), nameIn = document.getElementById('saveName');
+let pendingThumb = '';
+function askSave() {
+  if (dlg.open) return;
+  pendingThumb = snapshot(360, 'image/jpeg');
+  document.getElementById('saveThumb').src = pendingThumb;
+  nameIn.value = nameFor(state.seed);
+  dlg.showModal(); nameIn.select();
+}
+document.getElementById('btnSave').addEventListener('click', askSave);
+document.getElementById('saveCancel').addEventListener('click', () => dlg.close());
+dlg.addEventListener('close', () => {
+  if (dlg.returnValue !== 'ok') return;
+  dlg.returnValue = '';
+  const name = nameIn.value.trim() || nameFor(state.seed);
+  const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, date: Date.now(), seed: state.seed, depth: state.depth, branching: state.branching, spread: state.spread, mix: { ...state.mix }, thumb: pendingThumb };
+  forest.push(t);
+  if (!persist()) { t.thumb = ''; if (!persist()) { forest.pop(); toast('No hay espacio para guardar más árboles en este navegador.', false); return; } }
+  forestDirty = true; renderList();
+  toast(`«${name}» se plantó en el bosque`, true);
+});
+let toastTimer;
+function toast(msg, link) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastGo').hidden = !link;
+  el.classList.add('show'); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
+}
+document.getElementById('toastGo').addEventListener('click', () => { document.getElementById('toast').classList.remove('show'); setView('bosque'); });
+
+/* ---------- secciones ---------- */
+let VIEW = 'taller';
+function setView(v) {
+  VIEW = v;
+  document.getElementById('taller').hidden = v !== 'taller';
+  document.getElementById('bosque').hidden = v !== 'bosque';
+  document.querySelectorAll('nav.views button').forEach(b => b.dataset.view === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  if (v === 'bosque') { if (forestDirty) plant(); else fitForest(); fcontrols.autoRotate = true; }
+}
+document.querySelectorAll('nav.views button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+forestStageEl.querySelector('.tr').addEventListener('pointerdown', e => e.stopPropagation());
+document.querySelector('.rootToggle').addEventListener('click', () => setRoot(!showRoot));
+document.getElementById('btnForestAll').addEventListener('click', () => { fitForest(); fcontrols.autoRotate = true; });
+forestStageEl.addEventListener('pointerdown', () => { if (ffit) ffit.until = 0; });
+forestStageEl.addEventListener('wheel', () => { if (ffit) ffit.until = 0; }, { passive: true });
+
+/* ---------- bucle ---------- */
+function view(el, scene, cam, clip) {
+  const r = el.getBoundingClientRect();
+  const x0 = Math.max(r.left, clip.left, 0), y0 = Math.max(r.top, clip.top, 0);
+  const x1 = Math.min(r.right, clip.right, innerWidth), y1 = Math.min(r.bottom, clip.bottom, innerHeight);
+  if (x1 <= x0 || y1 <= y0) return false;
+  const H = innerHeight;
+  renderer.setViewport(r.left, H - r.bottom, r.width, r.height);
+  renderer.setScissor(x0, H - y1, x1 - x0, y1 - y0);
+  cam.aspect = r.width / r.height; cam.updateProjectionMatrix();
+  renderer.render(scene, cam);
+  return true;
+}
+const easeBack = t => { const c = 1.5; t -= 1; return 1 + (c + 1) * t * t * t + c * t * t; };
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  glideK = 1 - Math.exp(-Math.max(dt, .001) * 5);
+  const w = innerWidth, h = innerHeight;
+  if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) renderer.setSize(w, h, false);
+  renderer.setScissorTest(false); renderer.clear(); renderer.setScissorTest(true);
+
+  if (VIEW === 'bosque') { frameForest(now, w, h); return; }
+
+  // crecimiento y flotación
+  for (const o of pieces) {
+    const u = o.userData;
+    if (u.root && !showRoot) continue;
+    const t = (now - (u.root ? rootStart : growStart)) / 1000, k = Math.min(1, Math.max(0, (t - u.delay) / .55));
+    o.scale.setScalar(Math.max(1e-4, u.s * (k >= 1 ? 1 : easeBack(k))));
+    if (u.float) o.position.copy(u.base).addScaledVector(u.dir, Math.sin(now / 900 + u.phase) * u.s * .06);
+  }
+  fadeGround(G0);
+  if (fit && now < fit.until) glide(treeCam, controls, fit);
+  controls.update();
+  view(stageEl, treeScene, treeCam, { left: 0, top: 0, right: w, bottom: h });
+
+  const clip = cardsEl.getBoundingClientRect();
+  let prev = null;
+  for (const v of views) {
+    v.pivot.rotation.y += dt * (v.card.hover ? 1.6 : .35);
+    if (prev) prev.visible = false;
+    v.pivot.visible = true; prev = v.pivot;
+    view(v.el, catScene, catCam, clip);
+  }
+  if (prev) prev.visible = false;
+}
+// encuadre suave hacia una esfera (tras regenerar, o al elegir un árbol del bosque)
+// k depende del tiempo transcurrido, así converge igual aunque baje la tasa de cuadros
+let glideK = .08;
+function glide(cam, ctl, f) {
+  const k = glideK;
+  ctl.target.lerp(f.center, k);
+  const vf = THREE.MathUtils.degToRad(cam.fov) / 2, hf = Math.atan(Math.tan(vf) * cam.aspect);
+  const dist = f.radius / Math.sin(Math.min(vf, hf)) * 1.02;
+  const off = cam.position.clone().sub(ctl.target);
+  off.setLength(lerp(off.length(), dist, k));
+  cam.position.copy(ctl.target).add(off);
+}
+const _p = new THREE.Vector3();
+function frameForest(now, w, h) {
+  for (const f of forestTrees) {
+    if (f.done) continue;
+    let busy = false;
+    for (const o of f.list) {
+      const u = o.userData, t = (now - (u.root ? f.rs : f.cs)) / 1000, k = Math.min(1, Math.max(0, (t - u.delay) / .55));
+      o.scale.setScalar(Math.max(1e-4, u.s * (k >= 1 ? 1 : easeBack(k))));
+      if (k < 1) busy = true;
+    }
+    f.done = !busy;
+  }
+  fadeGround(GF);
+  if (ffit && now < ffit.until) glide(forestCam, fcontrols, ffit);
+  fcontrols.update();
+  view(forestStageEl, forestScene, forestCam, { left: 0, top: 0, right: w, bottom: h });
+  // etiquetas con el nombre, ancladas sobre cada copa
+  const r = forestStageEl.getBoundingClientRect();
+  for (const f of forestTrees) {
+    _p.copy(f.top).project(forestCam);
+    const hide = _p.z > 1 || Math.abs(_p.x) > 1.05 || Math.abs(_p.y) > 1.05;
+    f.label.style.display = hide ? 'none' : '';
+    if (!hide) f.label.style.transform = `translate(${(_p.x + 1) / 2 * r.width}px, ${(1 - _p.y) / 2 * r.height}px) translate(-50%, -100%)`;
+  }
+}
+renderer.setAnimationLoop(frame);
+
+syncAll();
+generate(true);
+renderList();
+</script>
+</body>
+</html>
