@@ -491,6 +491,33 @@ function warp(g, fn) {
   return g;
 }
 const mesh = (g, m) => new THREE.Mesh(g, m);
+
+/* raíz: la misma geometría, solo en naranja y amarillo claro.
+   Cada material se traduce una vez: los tonos oscuros pasan a naranja, los claros a amarillo;
+   las texturas punteadas se repintan con los dos tonos y conservan su relieve. */
+const NARANJA = '#FF3E00', AMARILLO = '#DDFF88';
+CANVAS.raizNaranja = CANVAS.dots(NARANJA, AMARILLO, 9);
+CANVAS.raizAmarillo = CANVAS.dots(AMARILLO, NARANJA, 15, false);
+const rootMats = new Map();
+function rootMat(m) {
+  if (rootMats.has(m)) return rootMats.get(m);
+  const r = m.clone();
+  let dark;
+  if (m.map) dark = m.map.image === CANVAS.limaColor;
+  else if (m.vertexColors) dark = true;
+  else { const c = m.color, l = .2126 * c.r + .7152 * c.g + .0722 * c.b; dark = l < .35 || (c.r > .9 && c.g < .2); }
+  if (m.map) {
+    const t = tex(dark ? CANVAS.raizNaranja : CANVAS.raizAmarillo, m.map.repeat.x, m.map.repeat.y, true);
+    r.map = t;
+  } else {
+    r.vertexColors = false;
+    r.color = new THREE.Color(dark ? NARANJA : AMARILLO);
+  }
+  if (r.sheenColor) r.sheenColor = new THREE.Color(dark ? AMARILLO : NARANJA);
+  r.iridescence = 0;
+  rootMats.set(m, r);
+  return r;
+}
 const GEO = {};
 const once = (key, fn) => () => (GEO[key] ??= fn());
 
@@ -952,7 +979,7 @@ function build(target, isRoot, counts, P = state, list = pieces) {
     obj.rotateY(r() * TAU);
     obj.userData = { s: scale, root: isRoot, delay: depth * .22 + r() * .15 + (extra.late || 0), base: obj.position.clone(), dir: dir.clone(), float: extra.float, phase: r() * TAU };
     obj.scale.setScalar(scale);
-    obj.traverse(m => { if (m.isMesh) m.castShadow = !isRoot; });
+    obj.traverse(m => { if (m.isMesh) { m.castShadow = !isRoot; if (isRoot) m.material = rootMat(m.material); } });
     target.add(obj); list.push(obj); n++;
     counts[id] = (counts[id] || 0) + 1;
   }
