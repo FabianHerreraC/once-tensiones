@@ -884,7 +884,7 @@ const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 
 
 function studio(scene) {
   scene.environment = env;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x4EF581, .8));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xe8e8e8, .8));
   const key = new THREE.DirectionalLight(0xfff6ee, 2.2); key.position.set(-3, 5, 4); scene.add(key);
   const rim = new THREE.DirectionalLight(0xDDFF88, 2.2); rim.position.set(4, 2, -4); scene.add(rim);
   const fill = new THREE.DirectionalLight(0xffffff, .7); fill.position.set(3, -2, 3); scene.add(fill);
@@ -1403,53 +1403,59 @@ function plant() {
   applySearch();
 }
 
-/* bajo el suelo, cada raíz se enlaza con las de sus vecinos: dos hebras (naranja y amarillo)
-   que bajan en curva de un árbol al otro y crecen al mostrar las raíces */
+/* bajo el suelo, cada raíz se enlaza con las de sus vecinos con un camino hecho de las mismas
+   piezas: ramas encadenadas a lo largo de una curva orgánica, con nudos en algunas uniones.
+   Las piezas salen de las tensiones de ambos árboles: cerca de cada uno pesa más su mezcla. */
 const connGroup = new THREE.Group(); connGroup.visible = false; forestScene.add(connGroup);
-const connMats = [
-  new THREE.MeshPhysicalMaterial({ color: 0xFF3E00, roughness: .55, metalness: .05, bumpMap: tex(CANVAS.pomez, 6, 1), bumpScale: 2, clearcoat: .2 }),
-  new THREE.MeshPhysicalMaterial({ color: 0xDDFF88, roughness: .45, metalness: .02, clearcoat: .5 }),
-];
-let connStart = 0, connDone = true;
+let connPieces = [], connStart = 0, connDone = true;
 function weaveRoots() {
-  connGroup.children.forEach(m => m.geometry.dispose());
-  connGroup.clear();
+  connGroup.clear(); connPieces = [];
   const byCell = new Map(forestTrees.map(f => [f.cell.join(','), f]));
-  // punto de anclaje: el corazón de la raíz de cada árbol
-  const anchor = f => V(f.holder.position.x, f.holder.position.y - (f.holder.position.y - f.rootLow) * .45, f.holder.position.z);
-  const r = mulberry32(77);
+  const anchor = f => V(f.holder.position.x, f.holder.position.y - (f.holder.position.y - f.rootLow) * .4, f.holder.position.z);
+  const STRUCT = ROLE('estructura'), NODES = ROLE('nudo');
+  let order = 0;
   for (const f of forestTrees) {
-    const a = anchor(f);
-    for (const [dx, dz] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+    for (const [dx, dz] of [[1, 0], [0, 1]]) {
       const g = byCell.get(`${f.cell[0] + dx},${f.cell[1] + dz}`);
       if (!g) continue;
-      const b = anchor(g), diag = dx && dz;
-      for (let k = 0; k < 2; k++) {
-        const side = (k ? 1 : -1) * (.25 + r() * .25), mid = a.clone().lerp(b, .5);
-        const dir = b.clone().sub(a).setY(0).normalize(), nrm = V(-dir.z, 0, dir.x);
-        const sag = (diag ? 1.1 : .8) + r() * .6;
-        const curve = new THREE.CatmullRomCurve3([
-          a.clone().addScaledVector(nrm, side * .3),
-          a.clone().lerp(b, .25).addScaledVector(nrm, side).add(V(0, -sag * .7, 0)),
-          mid.clone().addScaledVector(nrm, side * 1.2).add(V(0, -sag, 0)),
-          a.clone().lerp(b, .75).addScaledVector(nrm, side).add(V(0, -sag * .7, 0)),
-          b.clone().addScaledVector(nrm, side * .3),
-        ]);
-        const w = k ? .028 : .045;
-        const geo = taperTube(curve, u => w * (1 + .9 * (Math.abs(u - .5) * 2) ** 2) * caps(u, .02, .02), { ts: 80, rs: 10, rough: k ? 0 : .3, freq: 5 });
-        geo.setDrawRange(0, 0);
-        const m = new THREE.Mesh(geo, connMats[k]);
-        m.userData.delay = r() * .5 + (diag ? .3 : 0);
-        connGroup.add(m);
+      const rnd = mulberry32(f.t.seed * 13 + g.t.seed * 7 + dx);
+      const a = anchor(f), b = anchor(g), dir = b.clone().sub(a).setY(0).normalize(), nrm = V(-dir.z, 0, dir.x);
+      const sag = .9 + rnd() * .7, pts = [];
+      for (let i = 0; i <= 6; i++) {
+        const u = i / 6, wob = i === 0 || i === 6 ? 0 : (rnd() - .5) * 1.4;
+        pts.push(a.clone().lerp(b, u).addScaledVector(nrm, wob).add(V(0, -sag * Math.sin(Math.PI * u) + (rnd() - .5) * .25 * Math.sin(Math.PI * u), 0)));
+      }
+      const curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), nseg = Math.max(5, Math.round(len / .75));
+      const base = (order++ % 12) * .06 + rnd() * .3;
+      for (let i = 0; i < nseg; i++) {
+        const u0 = i / nseg, u1 = (i + 1) / nseg, p0 = curve.getPointAt(u0), p1 = curve.getPointAt(u1);
+        const seg = p1.clone().sub(p0), L = seg.length() * 1.08, t = (u0 + u1) / 2;
+        const mixAt = c => lerp(f.t.mix[c.id] ?? 50, g.t.mix[c.id] ?? 50, t) / 100;
+        const c = pick(STRUCT, rnd, c => c.bias[4]), id = rnd() < mixAt(c) ? c.B : c.A;
+        addConn(id, p0, seg.normalize(), L, base + i * .07, rnd);
+        if (i > 0 && rnd() < .3) {
+          const nd = pick(NODES, rnd, () => 1), nid = rnd() < mixAt(nd) ? nd.B : nd.A;
+          addConn(nid, p0, seg, L * .7, base + i * .07 + .1, rnd, 1);
+        }
       }
     }
   }
   connGroup.visible = showRoot;
-  if (showRoot) growConns(); else connGroup.children.forEach(m => m.geometry.setDrawRange(0, Infinity));
+  if (showRoot) growConns();
+}
+function addConn(id, pos, dir, scale, delay, rnd, thick = 1.9) {
+  const obj = BY[id].make();
+  obj.position.copy(pos);
+  obj.quaternion.setFromUnitVectors(UP, dir);
+  obj.rotateY(rnd() * TAU);
+  obj.traverse(m => { if (m.isMesh) m.material = rootMat(m.material); });
+  obj.scale.set(scale * thick, scale, scale * thick);
+  obj.userData = { s: scale, thick, delay };
+  connGroup.add(obj); connPieces.push(obj);
 }
 function growConns() {
   connStart = performance.now() + 900; connDone = false;
-  connGroup.children.forEach(m => m.geometry.setDrawRange(0, 0));
+  connPieces.forEach(o => o.scale.setScalar(1e-4));
 }
 // vuelve a crecer un árbol del bosque (o solo su raíz)
 function regrowTree(f, rootOnly) {
@@ -1758,13 +1764,13 @@ function glide(cam, ctl, f) {
 }
 const _p = new THREE.Vector3();
 function frameForest(now, w, h) {
-  // las hebras se tejen de un extremo al otro (se revela el índice del tubo por tramos)
+  // los caminos entre raíces crecen pieza a pieza, de un árbol hacia el vecino
   if (!connDone) {
     let busy = false;
-    for (const m of connGroup.children) {
-      const k = Math.min(1, Math.max(0, ((now - connStart) / 1000 - m.userData.delay) / 1.4));
-      const n = m.geometry.index.count;
-      m.geometry.setDrawRange(0, k >= 1 ? n : Math.floor(n * k / 6) * 6);
+    for (const o of connPieces) {
+      const k = Math.min(1, Math.max(0, ((now - connStart) / 1000 - o.userData.delay) / .5));
+      const sc = Math.max(1e-4, o.userData.s * (k >= 1 ? 1 : easeBack(k)));
+      o.scale.set(sc * o.userData.thick, sc, sc * o.userData.thick);
       if (k < 1) busy = true;
     }
     connDone = !busy;
