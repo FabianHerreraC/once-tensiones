@@ -104,6 +104,18 @@
   .wtip.show { opacity: 1; }
   button:disabled { opacity: .4; cursor: default; }
 
+  /* Visor 3D de piezas: mientras está abierto, el lienzo sube encima y pinta solo su recuadro */
+  body.viewing #gl { z-index: 12; }
+  .viewer { position: fixed; inset: 0; z-index: 11; background: rgba(255,255,255,.92); display: grid; place-items: center; padding: 16px; }
+  .viewer[hidden] { display: none; }
+  .vbox { width: min(560px, 100%); background: var(--g3); border-radius: 16px; box-shadow: 0 0 0 1px var(--g1), 0 30px 70px -30px rgba(0,0,0,.35); padding: 16px 16px 14px; }
+  .vhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .vpole { font-weight: 200; font-size: 34px; letter-spacing: -0.02em; line-height: 1.05; margin-top: 2px; }
+  .vpiece { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .vview { width: 100%; aspect-ratio: 1 / 1; max-height: 62vh; margin: 10px 0 8px; border-radius: 12px; background: var(--g2); cursor: grab; touch-action: none; }
+  .vview:active { cursor: grabbing; }
+  .vfoot { display: flex; justify-content: space-between; align-items: center; }
+
   /* Buscador del bosque */
   .search { position: relative; margin: 0 12px 10px; }
   .search input { width: 100%; font: 400 14px/1 var(--sans); color: var(--ink); padding: 10px 70px 10px 34px; border-radius: 99px; border: 0; background: var(--g3);
@@ -175,6 +187,17 @@
   .card figcaption { text-align: center; margin-top: 2px; transition: opacity .25s ease; }
   .card figcaption b { display: block; font-family: var(--serif); font-style: normal; font-weight: 400; font-size: 17px; }
   .card figcaption span { font-size: 10.5px; color: var(--ink-soft); }
+  .duo { display: grid; grid-template-columns: 76px 1fr 76px; gap: 10px; align-items: center; margin-top: 8px; }
+  .thumb { padding: 0; width: 76px; height: 76px; border-radius: 10px; border: 0; background: var(--g2); box-shadow: none; cursor: zoom-in; overflow: hidden; position: relative; }
+  .thumb img { width: 100%; height: 100%; display: block; object-fit: contain; transition: transform .25s ease; }
+  .thumb:hover { background: var(--g2); }
+  .thumb:hover img { transform: scale(1.08); }
+  .thumb::after { content: "3D"; position: absolute; right: 5px; bottom: 4px; font-weight: 700; font-size: 8.5px; letter-spacing: .07em; color: var(--ink-faint); }
+  .mid { min-width: 0; }
+  .mid .pl { display: flex; justify-content: space-between; font-weight: 200; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
+  .mid .pl b { font-weight: 200; transition: opacity .2s ease; }
+  .mid .pn { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-soft); }
+  .mid .tsl { margin: 4px 0 2px; }
   .tsl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin: 8px 2px 0; cursor: default; }
   .tsl output { font-size: 10.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
   .catalog .cat-hint { margin: -2px 16px 10px; }
@@ -184,7 +207,7 @@
   .card.open .desc { grid-template-rows: 1fr; }
   .desc p { margin: 12px 2px 0; font-size: 13px; line-height: 1.55; color: var(--ink); text-wrap: pretty; }
   .desc .pair { display: block; margin-top: 12px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-  .card .more { display: block; margin-top: 8px; text-align: center; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .card .more { display: block; margin-top: 6px; text-align: center; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
   .card.open .more { display: none; }
 
   /* Escenario */
@@ -244,7 +267,8 @@
   @media (max-width: 1150px) {
     body { overflow: auto; }
     .frame { height: auto; }
-    .app { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage" "cat"; }
+    .app { grid-template-columns: 1fr; grid-template-rows: auto auto; grid-template-areas: "stage" "cat"; align-items: start; }
+    #stage { position: sticky; top: 8px; z-index: 2; height: 46vh; }
     .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
     .tejido { grid-template-columns: 1fr; grid-template-rows: 55vh 65vh; grid-template-areas: "weave" "tst"; }
     .flist .scroll { overflow: visible; }
@@ -252,7 +276,14 @@
   }
   @media (max-width: 720px) {
     .frame { padding: 10px 16px; }
-    .app { grid-template-columns: 1fr; grid-template-rows: 68vh auto; grid-template-areas: "stage" "cat"; }
+    .app { grid-template-columns: 1fr; grid-template-rows: auto auto; grid-template-areas: "stage" "cat"; }
+    #stage { height: 42vh; }
+    .duo { grid-template-columns: 64px 1fr 64px; }
+    .thumb { width: 64px; height: 64px; }
+    .mid .pl { font-size: 14px; gap: 8px; }
+    .mid .pl b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mid .pl b + b { text-align: right; }
+    .tsl output { min-width: 36px; font-size: 9.5px; }
     nav.views { margin-left: 0; }
   }
   /* Ritmo tipográfico: Helvetica en tres pesos.
@@ -387,6 +418,14 @@
     <div class="acts"><button type="button" id="saveCancel">Cancelar</button><button class="primary" value="ok">Plantar en el bosque</button></div>
   </form>
 </dialog>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-labelledby="viewerPole">
+  <div class="vbox">
+    <div class="vhead"><div><div class="tag" id="viewerConcept"></div><div class="vpole" id="viewerPole"></div><div class="vpiece" id="viewerPiece"></div></div>
+      <button type="button" id="viewerClose" aria-label="Cerrar">Cerrar</button></div>
+    <div class="vview" id="viewerView"></div>
+    <div class="vfoot"><span class="tag">Arrastra para girar</span><button type="button" id="viewerOther"></button></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastGo">Ver bosque</button></div>
 
 <script type="module">
@@ -905,7 +944,7 @@ function catalogPivot(piece, i) {
 }
 
 const cardsEl = document.getElementById('cards');
-const views = [];
+const PIV = {}, thumbs = [];
 const cards = CONCEPTS.map((c, i) => {
   const A = BY[c.A], B = BY[c.B];
   const el = document.createElement('article');
@@ -914,19 +953,26 @@ const cards = CONCEPTS.map((c, i) => {
   el.style.setProperty('--ca', A.color); el.style.setProperty('--cb', B.color);
   el.innerHTML = `
     <div class="top"><span class="num">${c.n}</span><h3>${c.name}</h3><span class="role">${c.role}</span></div>
-    <div class="poles">
-      <figure><div class="view"></div><figcaption class="fa"><b>${c.a}</b><span>${A.name}</span></figcaption></figure>
-      <figure><div class="view"></div><figcaption class="fb"><b>${c.b}</b><span>${B.name}</span></figcaption></figure>
+    <div class="duo">
+      <button type="button" class="thumb" data-piece="${A.id}" aria-label="Ver ${A.name} en 3D"><img alt=""></button>
+      <div class="mid">
+        <div class="pl"><b class="fa">${c.a}</b><b class="fb">${c.b}</b></div>
+        <div class="tsl"><input type="range" min="0" max="100" step="1" aria-label="${c.name}: de ${c.a} a ${c.b}"><output></output></div>
+        <div class="pn"><span>${A.name}</span><span>${B.name}</span></div>
+      </div>
+      <button type="button" class="thumb" data-piece="${B.id}" aria-label="Ver ${B.name} en 3D"><img alt=""></button>
     </div>
-    <div class="tsl"><input type="range" min="0" max="100" step="1" aria-label="${c.name}: de ${c.a} a ${c.b}"><output></output></div>
     <div class="desc"><div><p>${c.text}</p><span class="pair">${c.a} ↔ ${c.b} · ${A.mat} / ${B.mat}</span></div></div>
     <span class="more">Leer</span>`;
   cardsEl.appendChild(el);
-  const card = { c, el, hover: false, fa: el.querySelector('.fa'), fb: el.querySelector('.fb') };
-  const [va, vb] = el.querySelectorAll('.view');
-  views.push({ el: va, pivot: catalogPivot(A, i * 2), card }, { el: vb, pivot: catalogPivot(B, i * 2 + 1), card });
-  el.addEventListener('pointerenter', () => card.hover = true);
-  el.addEventListener('pointerleave', () => card.hover = false);
+  const card = { c, el, fa: el.querySelector('.fa'), fb: el.querySelector('.fb') };
+  for (const [piece, k] of [[A, 0], [B, 1]]) {
+    PIV[piece.id] = catalogPivot(piece, i * 2 + k);
+    const btn = el.querySelectorAll('.thumb')[k];
+    btn.addEventListener('click', e => { e.stopPropagation(); openViewer(piece.id, c); });
+    btn.addEventListener('keydown', e => e.stopPropagation());
+    thumbs.push({ id: piece.id, img: btn.querySelector('img') });
+  }
   const go = () => openCard(card);
   el.addEventListener('click', go);
   el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
@@ -937,6 +983,57 @@ function openCard(card) {
   for (const k of cards) { k.el.classList.toggle('open', k === card && open); k.el.setAttribute('aria-expanded', k === card && open); }
   if (open) setTimeout(() => card.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 360);
 }
+
+/* miniaturas del catálogo: una foto fija de cada pieza, hecha una sola vez */
+function makeThumbs() {
+  const N = 220, tr = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  tr.setPixelRatio(1); tr.setSize(N, N, false);
+  tr.toneMapping = renderer.toneMapping; tr.toneMappingExposure = renderer.toneMappingExposure; tr.setClearColor(0, 0);
+  const pm = new THREE.PMREMGenerator(tr), tenv = pm.fromScene(new RoomEnvironment(), .04).texture;
+  const prevEnv = catScene.environment; catScene.environment = tenv;
+  const camPos = catCam.position.clone(); catCam.position.set(0, .28, 2.75); catCam.lookAt(0, 0, 0);
+  catCam.aspect = 1; catCam.updateProjectionMatrix();
+  for (const t of thumbs) {
+    const pv = PIV[t.id], ry = pv.rotation.y;
+    pv.visible = true; pv.rotation.y = .55;
+    tr.render(catScene, catCam);
+    t.img.src = tr.domElement.toDataURL('image/png');
+    pv.visible = false; pv.rotation.y = ry;
+  }
+  catScene.environment = prevEnv;
+  catCam.position.copy(camPos); catCam.lookAt(0, 0, 0);
+  tenv.dispose(); pm.dispose(); tr.dispose(); tr.forceContextLoss();
+}
+makeThumbs();
+
+/* visor 3D: al tocar una miniatura, la pieza gira en grande */
+const viewerEl = document.getElementById('viewer'), viewerView = document.getElementById('viewerView');
+let viewing = null, vdrag = null;
+function openViewer(id, c) {
+  if (viewing) PIV[viewing].visible = false;
+  viewing = id;
+  const p = BY[id], pole = c.A === id ? c.a : c.b, other = c.A === id ? c.B : c.A;
+  document.getElementById('viewerConcept').textContent = `${c.n} · ${c.name}`;
+  document.getElementById('viewerPole').textContent = pole;
+  document.getElementById('viewerPiece').textContent = `${p.name} — ${p.mat}`;
+  const sw = document.getElementById('viewerOther');
+  sw.textContent = `Ver ${c.A === id ? c.b : c.a}`; sw.onclick = () => openViewer(other, c);
+  PIV[id].rotation.set(.18, PIV[id].rotation.y, 0);
+  viewerEl.hidden = false; document.body.classList.add('viewing'); document.getElementById('viewerClose').focus();
+}
+function closeViewer() { if (viewing) PIV[viewing].visible = false; viewing = null; viewerEl.hidden = true; document.body.classList.remove('viewing'); }
+document.getElementById('viewerClose').addEventListener('click', closeViewer);
+viewerEl.addEventListener('click', e => { if (e.target === viewerEl) closeViewer(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && viewing) closeViewer(); });
+viewerView.addEventListener('pointerdown', e => { vdrag = { x: e.clientX, y: e.clientY }; viewerView.setPointerCapture(e.pointerId); });
+viewerView.addEventListener('pointermove', e => {
+  if (!vdrag || !viewing) return;
+  const pv = PIV[viewing];
+  pv.rotation.y += (e.clientX - vdrag.x) * .01;
+  pv.rotation.x = Math.max(-1.2, Math.min(1.2, pv.rotation.x + (e.clientY - vdrag.y) * .01));
+  vdrag = { x: e.clientX, y: e.clientY };
+});
+viewerView.addEventListener('pointerup', () => vdrag = null);
 
 /* árbol */
 const stageEl = document.getElementById('stage');
@@ -1732,6 +1829,12 @@ function frame(now) {
   if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) renderer.setSize(w, h, false);
   renderer.setScissorTest(false); renderer.clear(); renderer.setScissorTest(true);
 
+  if (viewing) {
+    const pv = PIV[viewing];
+    pv.visible = true; if (!vdrag) pv.rotation.y += dt * .6;
+    view(viewerView, catScene, catCam, { left: 0, top: 0, right: w, bottom: h });
+    return;
+  }
   if (VIEW === 'bosque') { frameForest(now, w, h); return; }
   if (VIEW === 'tejido') { frameTejido(now, w, h); return; }
 
@@ -1748,15 +1851,6 @@ function frame(now) {
   controls.update();
   view(stageEl, treeScene, treeCam, { left: 0, top: 0, right: w, bottom: h });
 
-  const clip = cardsEl.getBoundingClientRect();
-  let prev = null;
-  for (const v of views) {
-    v.pivot.rotation.y += dt * (v.card.hover ? 1.6 : .35);
-    if (prev) prev.visible = false;
-    v.pivot.visible = true; prev = v.pivot;
-    view(v.el, catScene, catCam, clip);
-  }
-  if (prev) prev.visible = false;
 }
 // encuadre suave hacia una esfera (tras regenerar, o al elegir un árbol del bosque)
 // k depende del tiempo transcurrido, así converge igual aunque baje la tasa de cuadros
