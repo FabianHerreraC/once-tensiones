@@ -83,19 +83,23 @@
   .ftree .acts .del.sure { background: #FF3E00; color: #fff; border-color: #FF3E00; }
 
   /* Tejido */
-  .tejido { display: grid; min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "weave" "tst"; gap: 14px; }
+  .tejido { display: grid; min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-areas: "weave" "tst"; gap: 14px; }
   .tejido[hidden] { display: none; }
-  .weave-panel { grid-area: weave; display: flex; flex-direction: column; position: relative; }
-  .weave-hint { margin: -2px 16px 12px; }
+  .weave-panel { grid-area: weave; display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 8px; position: relative; padding-bottom: 14px; }
+  .wside { display: flex; flex-direction: column; min-width: 0; }
+  .weave-panel .weave-hint { margin: -2px 16px 12px; }
+  .wsearch { margin: 0 16px 6px; }
+  .weave-panel .nofound { margin: 4px 16px; }
   #tejStage { grid-area: tst; }
   #tejStage .tr { top: auto; bottom: 12px; left: 12px; right: 12px; justify-content: flex-end; }
-  .weave { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: var(--gap, 3px); scrollbar-width: thin; }
-  .wrow { flex: none; display: flex; height: var(--rh, 14px); border-radius: 2px; overflow: hidden; cursor: pointer; transition: transform .15s ease, opacity .2s ease, box-shadow .15s ease; transform-origin: center; }
+  /* el tejido es un cuadro: una ruleta de hilos que gira al acercarse a sus bordes */
+  .wbox { position: relative; align-self: center; justify-self: center; height: calc(100% - 28px); max-height: 100%; aspect-ratio: 1 / 1; max-width: 100%; margin-top: 14px;
+    overflow: hidden; border-radius: 12px; background: var(--g3); box-shadow: 0 0 0 1px var(--g1); touch-action: none; cursor: default; }
+  .wrow { position: absolute; left: 14px; right: 14px; top: 0; display: flex; height: 4px; border-radius: 2px; overflow: hidden; cursor: pointer; transform-origin: center; will-change: transform, opacity; }
   .wrow i { display: block; height: 100%; }
-  .weave:hover .wrow { opacity: .45; }
-  .weave .wrow:hover, .weave .wrow.on { opacity: 1; }
-  .weave .wrow:hover, .weave .wrow.on { transform: scaleY(var(--grow, 2)); z-index: 1; }
   .wrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .wedge { position: absolute; left: 0; right: 0; height: 26%; z-index: 2; pointer-events: none; }
+  .wedge.top { top: 0; } .wedge.bottom { bottom: 0; }
   .weave-empty[hidden] { display: none; }
   .wtip { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .12s ease; white-space: nowrap;
     padding: 6px 12px 7px; border-radius: 99px; background: var(--g3); box-shadow: 0 0 0 1px var(--g1), 0 10px 24px -14px rgba(0,0,0,.4);
@@ -277,7 +281,9 @@
     .app { grid-template-columns: 1fr; grid-template-rows: auto auto; grid-template-areas: "stage" "cat"; align-items: start; }
     #stage { position: sticky; top: 8px; z-index: 2; height: 46vh; }
     .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
-    .tejido { grid-template-columns: 1fr; grid-template-rows: 55vh 65vh; grid-template-areas: "weave" "tst"; }
+    .tejido { grid-template-columns: 1fr; grid-template-rows: auto 60vh; grid-template-areas: "weave" "tst"; }
+    .weave-panel { grid-template-columns: 1fr; }
+    .wbox { height: auto; width: calc(100% - 28px); max-width: 520px; margin: 0 auto; }
     .flist .scroll { overflow: visible; }
     .cards { overflow: visible; }
   }
@@ -395,9 +401,18 @@
 
   <div class="tejido" id="tejido" hidden>
     <section class="panel weave-panel" aria-label="Tejido de árboles">
-      <div class="panel-head"><h2>Tejido</h2><span class="tag" id="weaveTag">0 hilos</span></div>
-      <p class="hint weave-hint">Cada hilo es un árbol: sus piezas, en proporción y color. Pasa por encima para ver de quién es; haz clic para verlo crecer.</p>
-      <div class="weave" id="weave" role="listbox" aria-label="Árboles guardados"></div>
+      <div class="wside">
+        <div class="panel-head"><h2>Tejido</h2><span class="tag" id="weaveTag">0 hilos</span></div>
+        <p class="hint weave-hint">Cada hilo es un árbol: sus piezas, en proporción y color. Acerca el cursor al borde de arriba o de abajo para hacer girar el tejido; pasa por un hilo para ver de quién es y haz clic para verlo crecer.</p>
+        <div class="search wsearch">
+          <input type="search" id="weaveSearch" placeholder="Buscar por nombre" aria-label="Buscar hilo por nombre" autocomplete="off">
+          <span class="tag" id="weaveCount"></span>
+        </div>
+        <p class="nofound" id="weaveNoFound" hidden>Ningún hilo se llama así.</p>
+      </div>
+      <div class="wbox" id="weave" role="listbox" aria-label="Árboles guardados">
+        <div class="wedge top" aria-hidden="true"></div><div class="wedge bottom" aria-hidden="true"></div>
+      </div>
       <div class="empty weave-empty" id="weaveEmpty"><div><b>Todavía no hay hilos</b>Guarda árboles desde el taller para tejerlos aquí.</div></div>
     </section>
     <section class="stage" id="tejStage" aria-label="Árbol elegido del tejido (arrastra para girar)">
@@ -1730,37 +1745,87 @@ function countsFor(t) {
   return countsCache.get(key);
 }
 const weaveEl = document.getElementById('weave'), wtip = document.getElementById('wtip');
+// la ruleta: los hilos se ordenan en un tambor que se repite; cerca del centro se ven plenos y
+// hacia los bordes se adelgazan y se desvanecen. Acercar el cursor arriba o abajo lo hace girar.
+const PITCH = 11, RH = 4;
+let wrows = [], woff = 0, wvel = 0, whover = null, wtouch = null;
+const weaveSearchEl = document.getElementById('weaveSearch');
 function renderWeave() {
-  weaveEl.innerHTML = '';
+  weaveEl.querySelectorAll('.wrow').forEach(r => r.remove());
+  const q = fold(weaveSearchEl.value.trim());
+  const items = forest.filter(t => !q || fold(t.name).includes(q));
   document.getElementById('weaveTag').textContent = `${forest.length} ${forest.length === 1 ? 'hilo' : 'hilos'}`;
   document.getElementById('weaveEmpty').hidden = forest.length > 0;
-  // el grosor de cada hilo se ajusta para que el tejido llene el panel
-  const n = Math.max(forest.length, 1), gap = n > 30 ? 2 : 3, avail = Math.max(120, weaveEl.clientHeight - 24);
-  const full = Math.max(4, Math.min(30, Math.floor((avail - gap * (n - 1)) / n)));
-  // el hilo se dibuja a la mitad; el hueco que deja pasa al espaciado para que el tejido siga llenando el panel
-  const rh = Math.max(2, Math.round(full / 2));
-  weaveEl.style.setProperty('--rh', rh + 'px');
-  weaveEl.style.setProperty('--gap', (gap + full - rh) + 'px');
-  weaveEl.style.setProperty('--grow', (full / rh).toFixed(3));
-  for (const t of forest) {
+  document.getElementById('weaveCount').textContent = q ? `${items.length} de ${forest.length}` : '';
+  document.getElementById('weaveNoFound').hidden = !q || items.length > 0;
+  wrows = items.map(t => {
     const counts = countsFor(t), total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
     const row = document.createElement('div');
     row.className = 'wrow'; row.tabIndex = 0; row.setAttribute('role', 'option'); row.dataset.id = t.id;
-    row.setAttribute('aria-label', t.name);
+    row.setAttribute('aria-label', t.carrera ? `${t.name}, ${carreraDe(t.carrera)}` : t.name);
     row.innerHTML = PIECES.filter(p => counts[p.id]).map(p => `<i style="flex-grow:${counts[p.id] / total};background:${p.color}"></i>`).join('');
-    row.classList.toggle('on', tej && tej.t.id === t.id);
     row.addEventListener('pointermove', e => {
+      whover = t.id;
       wtip.innerHTML = '';
       wtip.append(t.name); const sm = document.createElement('small'); sm.textContent = t.carrera ? `${t.carrera} · ${carreraDe(t.carrera)}` : `${total} piezas`; wtip.append(sm);
       const x = Math.min(e.clientX + 16, innerWidth - wtip.offsetWidth - 8), y = e.clientY - wtip.offsetHeight - 12;
       wtip.style.transform = `translate(${x}px, ${Math.max(8, y)}px)`; wtip.classList.add('show');
     });
-    row.addEventListener('pointerleave', () => wtip.classList.remove('show'));
+    row.addEventListener('pointerleave', () => { if (whover === t.id) whover = null; wtip.classList.remove('show'); });
     row.addEventListener('click', () => showTej(t));
     row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showTej(t); } });
+    row.addEventListener('focus', () => centerOn(t.id));
     weaveEl.appendChild(row);
+    return { t, row, k: 1 };
+  });
+  if (q && items.length) centerOn(items[0].id, true);
+}
+// gira el tambor hasta dejar un hilo en el centro
+function centerOn(id, now) {
+  const i = wrows.findIndex(w => w.t.id === id); if (i < 0) return;
+  const H = weaveEl.clientHeight, T = wrows.length * PITCH;
+  let target = H / 2 - i * PITCH - RH / 2;
+  if (T > H) { const d = ((target - woff) % T + T * 1.5) % T - T / 2; target = woff + d; }
+  if (now) woff = target; else wtarget = target;
+}
+let wtarget = null;
+function frameWeave(dt) {
+  const H = weaveEl.clientHeight, n = wrows.length;
+  if (!n || !H) return;
+  const T = n * PITCH, loops = T > H + PITCH;
+  if (wtarget !== null) { woff = lerp(woff, wtarget, 1 - Math.exp(-dt * 8)); if (Math.abs(woff - wtarget) < .5) { woff = wtarget; wtarget = null; } }
+  else woff += wvel * dt;
+  if (!loops) woff = (H - T) / 2;                       // pocos hilos: quietos y centrados
+  for (let i = 0; i < n; i++) {
+    const w = wrows[i];
+    let y = i * PITCH + woff;
+    if (loops) y = ((y % T) + T) % T - PITCH;            // el tambor se repite
+    const d = Math.min(1, Math.abs(y + RH / 2 - H / 2) / (H / 2));
+    const drum = Math.cos(d * Math.PI / 2);             // perfil de ruleta
+    const sel = tej && tej.t.id === w.t.id, hov = whover === w.t.id;
+    const k = (sel || hov ? 2 : 1) * (.35 + .65 * drum);
+    w.k = lerp(w.k, k, 1 - Math.exp(-dt * 14));
+    w.row.style.transform = `translateY(${y.toFixed(1)}px) scaleY(${w.k.toFixed(3)})`;
+    w.row.style.opacity = (sel || hov ? 1 : .15 + .85 * drum).toFixed(3);
+    w.row.style.visibility = y < -PITCH || y > H ? 'hidden' : '';
   }
 }
+weaveEl.addEventListener('pointermove', e => {
+  if (wtouch) return;
+  const r = weaveEl.getBoundingClientRect(), y = e.clientY - r.top, zone = r.height * .26, maxV = 320;
+  wtarget = null;
+  wvel = y < zone ? -maxV * ((zone - y) / zone) ** 1.5 * -1 : y > r.height - zone ? -maxV * ((y - (r.height - zone)) / zone) ** 1.5 : 0;
+});
+weaveEl.addEventListener('pointerleave', () => { wvel = 0; whover = null; });
+weaveEl.addEventListener('wheel', e => { e.preventDefault(); wtarget = null; woff -= e.deltaY; }, { passive: false });
+weaveEl.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { wtouch = e.clientY; wvel = 0; wtarget = null; } });
+weaveEl.addEventListener('pointermove', e => { if (wtouch !== null) { woff += e.clientY - wtouch; wtouch = e.clientY; } });
+addEventListener('pointerup', () => { wtouch = null; });
+weaveSearchEl.addEventListener('input', renderWeave);
+weaveSearchEl.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { weaveSearchEl.value = ''; renderWeave(); }
+  if (e.key === 'Enter' && wrows.length) showTej(wrows[0].t);
+});
 addEventListener('resize', () => { if (VIEW === 'tejido') renderWeave(); });
 
 const tejStageEl = document.getElementById('tejStage');
@@ -1794,7 +1859,7 @@ function showTej(t) {
   document.getElementById('tejMeta').textContent = [t.carrera && `${t.carrera} · ${carreraDe(t.carrera)}`, date, `semilla ${t.seed}`].filter(Boolean).join(' · ');
   document.getElementById('tejEmpty').hidden = true;
   document.getElementById('tejOpen').disabled = document.getElementById('tejForest').disabled = false;
-  weaveEl.querySelectorAll('.wrow').forEach(r => { r.classList.toggle('on', r.dataset.id === t.id); r.setAttribute('aria-selected', r.dataset.id === t.id); });
+  weaveEl.querySelectorAll('.wrow').forEach(r => r.setAttribute('aria-selected', r.dataset.id === t.id));
 }
 function refitTej() {
   const s = showRoot ? tej.sAll : tej.sCrown;
@@ -1806,6 +1871,7 @@ tejStageEl.querySelector('.tr').addEventListener('pointerdown', e => e.stopPropa
 tejStageEl.addEventListener('pointerdown', () => { if (tfit) tfit.until = 0; });
 tejStageEl.addEventListener('wheel', () => { if (tfit) tfit.until = 0; }, { passive: true });
 function frameTejido(now, w, h) {
+  frameWeave(Math.min(.05, (now - (frameTejido.last || now)) / 1000)); frameTejido.last = now;
   if (tej && !tej.done) {
     let busy = false;
     for (const o of tej.list) {
