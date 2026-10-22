@@ -58,6 +58,7 @@
   .flabel { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); pointer-events: auto; cursor: pointer; white-space: nowrap;
     font-family: var(--serif); font-style: normal; font-size: 16px; color: var(--ink); padding: 3px 10px 4px; border-radius: 99px;
     background: var(--g3); border: 1px solid var(--g1); box-shadow: 0 6px 16px -10px rgba(40,30,60,.35); transition: background .2s ease; }
+  .flabel small { font-weight: 700; font-size: 9px; letter-spacing: .07em; margin-left: 6px; opacity: .6; vertical-align: 1px; }
   .flabel:hover, .flabel.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
   .flabel::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 1px; height: 7px; background: rgba(0,0,0,.4); }
   .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; z-index: 7; pointer-events: none; color: var(--ink-soft); }
@@ -73,6 +74,8 @@
   .ftree input { font: 400 19px/1.1 var(--serif); font-style: normal; color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed transparent; padding: 0 0 1px; width: 100%; }
   .ftree input:hover { border-bottom-color: rgba(0,0,0,.3); }
   .ftree input:focus { outline: none; border-bottom-color: var(--accent); }
+  .ftree .carrera { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ftree .carrera b { font-weight: 700; font-size: 9.5px; letter-spacing: .07em; color: var(--ink); margin-right: 3px; }
   .ftree .meta { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-top: 3px; }
   .ftree .mixbar { height: 4px; margin-top: 6px; }
   .ftree .acts { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
@@ -91,7 +94,7 @@
   .wrow i { display: block; height: 100%; }
   .weave:hover .wrow { opacity: .45; }
   .weave .wrow:hover, .weave .wrow.on { opacity: 1; }
-  .weave .wrow:hover { transform: scaleY(1.7); z-index: 1; }
+  .weave .wrow:hover, .weave .wrow.on { transform: scaleY(var(--grow, 2)); z-index: 1; }
   .wrow.on { box-shadow: 0 0 0 2px var(--g3), 0 0 0 4px var(--accent); }
   .wrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .weave-empty[hidden] { display: none; }
@@ -126,6 +129,9 @@
   dialog label { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
   dialog input { display: block; width: 100%; margin-top: 6px; font: 400 22px/1.2 var(--serif); font-style: normal; color: var(--ink); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--g1); background: var(--g3); }
   dialog input:focus { outline: 2px solid var(--violeta); outline-offset: 1px; }
+  dialog .lbl2 { display: block; margin-top: 14px; }
+  dialog select { display: block; width: 100%; margin-top: 6px; font: 400 15px/1.2 var(--sans); color: var(--ink); padding: 9px 12px; border-radius: 10px; border: 1px solid var(--g1); background: var(--g3); }
+  dialog select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   dialog .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); opacity: 0; z-index: 20; transition: opacity .25s ease, transform .25s ease;
     display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-size: 13px; box-shadow: 0 16px 40px -16px rgba(0,0,0,.4); pointer-events: none; }
@@ -385,6 +391,8 @@
     <img id="saveThumb" alt="">
     <label for="saveName">Nombre</label>
     <input id="saveName" name="name" maxlength="40" required autocomplete="off">
+    <label for="saveCarrera" class="lbl2">Carrera</label>
+    <select id="saveCarrera" name="carrera"></select>
     <div class="acts"><button type="button" id="saveCancel">Cancelar</button><button class="primary" value="ok">Plantar en el bosque</button></div>
   </form>
 </dialog>
@@ -1227,6 +1235,13 @@ const SEMBRADORES = ['Lucía', 'Mateo', 'Valentina', 'Santiago', 'Isabella', 'Se
   'Manuela', 'Felipe', 'Salomé', 'Julián', 'Renata', 'Simón', 'Juliana', 'Esteban', 'Laura', 'Miguel',
   'Catalina', 'David', 'Abril', 'Gabriel', 'Luciana', 'Diego', 'Emilia', 'Alejandro', 'Sara', 'Juan José',
   'Victoria', 'Pablo', 'Elena', 'Matías', 'Carolina', 'Daniel', 'Ximena', 'Óscar', 'Ana María', 'Ignacio'];
+const CARRERAS = [
+  ['ARQ', 'Arquitectura'], ['DI', 'Diseño Industrial'], ['AD', 'Arte Dramático'], ['FM', 'Formación Musical'],
+  ['CD', 'Creación Digital'], ['DC', 'Diseño de Comunicación'], ['AP', 'Artes Plásticas'], ['MEDU', 'Maestría en Ergonomía y Diseño Universal'],
+];
+const carreraDe = abbr => (CARRERAS.find(c => c[0] === abbr) || [])[1] || '';
+// carrera de cada árbol de ejemplo, con un azar aparte para no mover sus semillas
+const carreraSemilla = i => CARRERAS[Math.floor(fract(Math.sin((i + 1) * 91.17 + 3.3) * 43758.5453) * CARRERAS.length)][0];
 function seedForest() {
   const r = mulberry32(5150), day = 86400000, start = Date.now() - 50 * day;
   return SEMBRADORES.map((name, i) => {
@@ -1237,7 +1252,7 @@ function seedForest() {
       mix[c.id] = Math.round(v);
     }
     return {
-      id: 'semilla-' + i, name, date: start + i * day + Math.floor(r() * day), thumb: '',
+      id: 'semilla-' + i, name, carrera: carreraSemilla(i), date: start + i * day + Math.floor(r() * day), thumb: '',
       seed: 1 + Math.floor(r() * 99998), depth: r() < .75 ? 3 : 4, branching: r() < .8 ? 2 : 3, spread: 28 + Math.round(r() * 40), mix,
     };
   });
@@ -1245,7 +1260,10 @@ function seedForest() {
 try {
   const saved = localStorage.getItem(STORE);
   forest = saved ? JSON.parse(saved) || [] : seedForest();
-  if (!saved) persist();
+  // los árboles de ejemplo guardados antes de que existieran las carreras reciben la suya
+  let patched = false;
+  forest.forEach(t => { const m = /^semilla-(\d+)$/.exec(t.id); if (m && !t.carrera) { t.carrera = carreraSemilla(+m[1]); patched = true; } });
+  if (!saved || patched) persist();
 } catch { forest = seedForest(); }
 function persist() {
   try { localStorage.setItem(STORE, JSON.stringify(forest)); return true; }
@@ -1313,6 +1331,19 @@ const gridMat = new THREE.ShaderMaterial({
 const grid = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), gridMat);
 grid.renderOrder = 3; forestScene.add(grid);
 
+// orden orgánico de casillas: se ocupan por cercanía al centro, deformada por un ruido suave,
+// y algunas casillas quedan vacías; así el borde del bosque es irregular y hay claros adentro
+const CELL_ORDER = (() => {
+  const R = 22, cells = [];
+  const h = (x, z, k) => fract(Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453);
+  for (let x = -R; x <= R; x++) for (let z = -R; z <= R; z++) {
+    if (x || z) { if (h(x, z, 1) < .2) continue; }                       // claros
+    const d = Math.hypot(x, z) * (1 + .55 * (fbm3(x * .35 + 4, 2, z * .35 - 7, 3) - .5) * 2) + h(x, z, 2) * 1.3;
+    cells.push([d, x, z]);
+  }
+  return cells.sort((a, b) => a[0] - b[0]).map(c => [c[1], c[2]]);
+})();
+const organicCell = i => CELL_ORDER[i] || spiralCell(i + 4000);
 // cuadrantes en espiral cuadrada desde el centro: (0,0), (1,0), (1,1), (0,1), (-1,1)…
 function spiralCell(i) {
   let x = 0, y = 0, dx = 1, dy = 0, len = 1, k = 0;
@@ -1366,6 +1397,10 @@ function jitter(seed, cx, cz) {
   const gx = (n(cx + e, cz) - n(cx - e, cz)) / (2 * e), gz = (n(cx, cz + e) - n(cx, cz - e)) / (2 * e);
   return [r * Math.cos(th) + .06 * CELL * gx * 4, r * Math.sin(th) + .06 * CELL * gz * 4];
 }
+function setLabel(el, t) {
+  el.textContent = t.name;
+  if (t.carrera) { const sm = document.createElement('small'); sm.textContent = t.carrera; sm.title = carreraDe(t.carrera); el.append(sm); }
+}
 function plant() {
   forestGroup.clear(); labelsEl.innerHTML = ''; forestTrees = [];
   const now = performance.now();
@@ -1381,7 +1416,7 @@ function plant() {
     const local = new THREE.Box3().setFromObject(crown);
     const half = Math.max(-local.min.x, local.max.x, -local.min.z, local.max.z);
     holder.scale.setScalar(Math.min(1, CELL * .36 / half));
-    const [cx, cz] = spiralCell(i);
+    const [cx, cz] = organicCell(i);
     const [ox, oz] = jitter(t.seed, cx, cz);
     const px = cx * CELL + ox, pz = cz * CELL + oz;
     holder.position.set(px, relief(px, pz) - .04, pz);
@@ -1390,7 +1425,7 @@ function plant() {
     holder.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(crown);
     const label = document.createElement('div');
-    label.className = 'flabel'; label.textContent = t.name;
+    label.className = 'flabel'; setLabel(label, t);
     label.addEventListener('pointerdown', e => e.stopPropagation());
     label.addEventListener('click', () => select(t.id, true, true));
     labelsEl.appendChild(label);
@@ -1518,12 +1553,12 @@ function renderList() {
     el.className = 'ftree'; el.dataset.id = t.id;
     const date = new Date(t.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
     const bar = CONCEPTS.map(c => `<i style="flex-grow:1;background:${t.mix[c.id] >= 50 ? BY[c.B].color : BY[c.A].color}" title="${c.name}: ${t.mix[c.id] >= 50 ? c.b : c.a}"></i>`).join('');
-    el.innerHTML = `${t.thumb ? `<img alt="" src="${t.thumb}">` : '<span class="ph"></span>'}<div><input aria-label="Nombre del árbol" maxlength="40"><div class="meta">${date} · semilla ${t.seed}</div><div class="mixbar">${bar}</div>
+    el.innerHTML = `${t.thumb ? `<img alt="" src="${t.thumb}">` : '<span class="ph"></span>'}<div><input aria-label="Nombre del árbol" maxlength="40">${t.carrera ? `<div class="carrera"><b>${t.carrera}</b> ${carreraDe(t.carrera)}</div>` : ''}<div class="meta">${date} · semilla ${t.seed}</div><div class="mixbar">${bar}</div>
       <div class="acts"><button class="see">Ver</button><button class="open">Abrir en el taller</button><button class="del">Quitar</button></div></div>`;
     const input = el.querySelector('input'); input.value = t.name;
     input.addEventListener('change', () => {
       t.name = input.value.trim() || t.name; input.value = t.name; persist();
-      const f = forestTrees.find(f => f.t.id === t.id); if (f) f.label.textContent = t.name;
+      const f = forestTrees.find(f => f.t.id === t.id); if (f) setLabel(f.label, t);
       markSelected();
     });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
@@ -1570,6 +1605,7 @@ function openInTaller(t) {
   setView('taller');
 }
 
+document.getElementById('saveCarrera').innerHTML = '<option value="">Sin carrera</option>' + CARRERAS.map(([a, n]) => `<option value="${a}">${a} · ${n}</option>`).join('');
 const dlg = document.getElementById('saveDlg'), nameIn = document.getElementById('saveName');
 let pendingThumb = '';
 function askSave() {
@@ -1585,7 +1621,8 @@ dlg.addEventListener('close', () => {
   if (dlg.returnValue !== 'ok') return;
   dlg.returnValue = '';
   const name = nameIn.value.trim() || nameFor(state.seed);
-  const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, date: Date.now(), seed: state.seed, depth: state.depth, branching: state.branching, spread: state.spread, mix: { ...state.mix }, thumb: pendingThumb };
+  const carrera = document.getElementById('saveCarrera').value;
+  const t = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, carrera, date: Date.now(), seed: state.seed, depth: state.depth, branching: state.branching, spread: state.spread, mix: { ...state.mix }, thumb: pendingThumb };
   forest.push(t);
   if (!persist()) { t.thumb = ''; if (!persist()) { forest.pop(); toast('No hay espacio para guardar más árboles en este navegador.', false); return; } }
   forestDirty = true; renderList();
@@ -1615,9 +1652,12 @@ function renderWeave() {
   document.getElementById('weaveEmpty').hidden = forest.length > 0;
   // el grosor de cada hilo se ajusta para que el tejido llene el panel
   const n = Math.max(forest.length, 1), gap = n > 30 ? 2 : 3, avail = Math.max(120, weaveEl.clientHeight - 24);
-  const rh = Math.max(5, Math.min(30, Math.floor((avail - gap * (n - 1)) / n)));
+  const full = Math.max(5, Math.min(30, Math.floor((avail - gap * (n - 1)) / n)));
+  // el hilo se dibuja a la mitad; el hueco que deja pasa al espaciado para que el tejido siga llenando el panel
+  const rh = Math.max(2, Math.round(full / 2));
   weaveEl.style.setProperty('--rh', rh + 'px');
-  weaveEl.style.setProperty('--gap', gap + 'px');
+  weaveEl.style.setProperty('--gap', (gap + full - rh) + 'px');
+  weaveEl.style.setProperty('--grow', (full / rh).toFixed(3));
   for (const t of forest) {
     const counts = countsFor(t), total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
     const row = document.createElement('div');
@@ -1627,7 +1667,7 @@ function renderWeave() {
     row.classList.toggle('on', tej && tej.t.id === t.id);
     row.addEventListener('pointermove', e => {
       wtip.innerHTML = '';
-      wtip.append(t.name); const sm = document.createElement('small'); sm.textContent = `${total} piezas`; wtip.append(sm);
+      wtip.append(t.name); const sm = document.createElement('small'); sm.textContent = t.carrera ? `${t.carrera} · ${carreraDe(t.carrera)}` : `${total} piezas`; wtip.append(sm);
       const x = Math.min(e.clientX + 16, innerWidth - wtip.offsetWidth - 8), y = e.clientY - wtip.offsetHeight - 12;
       wtip.style.transform = `translate(${x}px, ${Math.max(8, y)}px)`; wtip.classList.add('show');
     });
@@ -1667,7 +1707,7 @@ function showTej(t) {
   refitTej();
   document.getElementById('tejName').textContent = t.name;
   const date = new Date(t.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
-  document.getElementById('tejMeta').textContent = `${date} · semilla ${t.seed}`;
+  document.getElementById('tejMeta').textContent = [t.carrera && `${t.carrera} · ${carreraDe(t.carrera)}`, date, `semilla ${t.seed}`].filter(Boolean).join(' · ');
   document.getElementById('tejEmpty').hidden = true;
   document.getElementById('tejOpen').disabled = document.getElementById('tejForest').disabled = false;
   weaveEl.querySelectorAll('.wrow').forEach(r => { r.classList.toggle('on', r.dataset.id === t.id); r.setAttribute('aria-selected', r.dataset.id === t.id); });
