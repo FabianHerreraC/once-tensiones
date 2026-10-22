@@ -83,7 +83,7 @@
   .ftree .acts .del.sure { background: #FF3E00; color: #fff; border-color: #FF3E00; }
 
   /* Tejido */
-  .tejido { display: grid; min-height: 0; grid-template-columns: 1fr minmax(320px, 460px); grid-template-areas: "weave tst"; gap: 14px; }
+  .tejido { display: grid; min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "weave" "tst"; gap: 14px; }
   .tejido[hidden] { display: none; }
   .weave-panel { grid-area: weave; display: flex; flex-direction: column; position: relative; }
   .weave-hint { margin: -2px 16px 12px; }
@@ -247,7 +247,7 @@
     .frame { height: auto; }
     .app { grid-template-columns: 1fr 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage stage" "cat mix"; }
     .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
-    .tejido { grid-template-columns: 1fr; grid-template-rows: 60vh 60vh; grid-template-areas: "tst" "weave"; }
+    .tejido { grid-template-columns: 1fr; grid-template-rows: 55vh 65vh; grid-template-areas: "weave" "tst"; }
     .flist .scroll { overflow: visible; }
     .cards { overflow: visible; }
     .mixer .scroll { overflow: visible; }
@@ -1652,7 +1652,7 @@ function renderWeave() {
   document.getElementById('weaveEmpty').hidden = forest.length > 0;
   // el grosor de cada hilo se ajusta para que el tejido llene el panel
   const n = Math.max(forest.length, 1), gap = n > 30 ? 2 : 3, avail = Math.max(120, weaveEl.clientHeight - 24);
-  const full = Math.max(5, Math.min(30, Math.floor((avail - gap * (n - 1)) / n)));
+  const full = Math.max(4, Math.min(30, Math.floor((avail - gap * (n - 1)) / n)));
   // el hilo se dibuja a la mitad; el hueco que deja pasa al espaciado para que el tejido siga llenando el panel
   const rh = Math.max(2, Math.round(full / 2));
   weaveEl.style.setProperty('--rh', rh + 'px');
