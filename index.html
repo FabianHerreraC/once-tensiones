@@ -9,12 +9,12 @@
     --g1: #D4D4D4;
     --g2: #E6E6E6;
     --g3: #FFFFFF;
-    --ink: #003B15;
+    --ink: #00230C;
     --accent: #00E245;
-    --accent-strong: #00C83D;
-    --on-accent: #003B15;
-    --ink-soft: rgba(0, 59, 21, 0.72);
-    --ink-faint: rgba(0, 59, 21, 0.48);
+    --accent-strong: #4EF581;
+    --on-accent: #00230C;
+    --ink-soft: rgba(0, 35, 12, 0.72);
+    --ink-faint: rgba(0, 35, 12, 0.48);
     --line: rgba(0, 0, 0, 0.13);
     --panel: var(--g3);
     --panel-strong: var(--g3);
@@ -77,7 +77,7 @@
   .ftree .mixbar { height: 4px; margin-top: 6px; }
   .ftree .acts { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
   .ftree .acts button { padding: 5px 9px; font-size: 11px; box-shadow: none; }
-  .ftree .acts .del.sure { background: #b3264f; color: #fff; }
+  .ftree .acts .del.sure { background: #FF3E00; color: #fff; border-color: #FF3E00; }
 
   /* Buscador del bosque */
   .search { position: relative; margin: 0 12px 10px; }
@@ -91,7 +91,7 @@
   .search .tag { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
   .nofound { margin: 4px 16px; font-size: 13px; color: var(--ink-soft); }
   .flabel.dim { opacity: .18; pointer-events: none; }
-  mark { background: var(--accent); color: var(--on-accent); border-radius: 2px; }
+  mark { background: #DDFF88; color: var(--on-accent); border-radius: 2px; }
 
   /* Guardar */
   dialog { border: 1px solid rgba(255,255,255,.8); border-radius: 16px; padding: 22px; width: min(400px, calc(100vw - 32px)); color: var(--ink);
@@ -167,13 +167,13 @@
   .stage:active { cursor: grabbing; }
   .stage .overlay { position: absolute; z-index: 7; pointer-events: none; }
   .stage .tl { top: 14px; left: 16px; }
-  .stage .tl .tag { color: rgba(0,59,21,.55); }
+  .stage .tl .tag { color: rgba(0,35,12,.55); }
   .stage .tl .big { font-family: var(--serif); font-size: 24px; margin-top: 2px; }
-  .stage .tr { z-index: 8; top: 12px; right: 12px; display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .stage .tr { z-index: 8; top: 12px; right: 12px; left: 130px; display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
   .stage .bl { left: 16px; right: 16px; bottom: 14px; }
   .mixbar { display: flex; height: 6px; border-radius: 6px; overflow: hidden; background: var(--g2); }
   .mixbar i { display: block; height: 100%; }
-  .stats { display: flex; justify-content: space-between; margin-top: 7px; font-family: var(--mono); font-size: 10.5px; color: rgba(0,59,21,.6); }
+  .stats { display: flex; justify-content: space-between; margin-top: 7px; font-family: var(--mono); font-size: 10.5px; color: rgba(0,35,12,.6); }
 
   button {
     font: 500 12px/1 var(--sans); color: var(--ink);
@@ -195,7 +195,7 @@
   .group { padding: 10px 0 4px; border-top: 1px solid var(--line); }
   .group h3 { margin: 0 0 4px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
   .trow { padding: 6px 6px 7px; margin: 0 -6px; border-radius: 8px; transition: background .3s ease; display: block; }
-  .trow.flash { background: var(--g3); }
+  .trow.flash { background: #DDFF88; }
   .trow .rt { display: flex; justify-content: space-between; align-items: baseline; }
   .trow .nm { font-size: 13px; font-weight: 500; }
   .trow .nm small { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); margin-right: 5px; font-weight: 400; }
@@ -425,8 +425,8 @@ const CANVAS = {
   }),
 };
 CANVAS.limaBump = CANVAS.dots('#ffffff', '#000000', 10);
-CANVAS.limaColor = CANVAS.dots('#a6d42c', '#4f7a0c', 9);
-CANVAS.perla = CANVAS.dots('#eef0fa', '#4b3fd2', 15, false);
+CANVAS.limaColor = CANVAS.dots('#00E245', '#00230C', 9);
+CANVAS.perla = CANVAS.dots('#DDFF88', '#00230C', 15, false);
 CANVAS.perlaBump = CANVAS.dots('#ffffff', '#000000', 15, false);
 
 function tex(canvas, rx = 1, ry = rx, color = false) {
@@ -438,18 +438,18 @@ function tex(canvas, rx = 1, ry = rx, color = false) {
 
 /* ---------- materiales ---------- */
 const MAT = {
-  azul: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x6f86e8, metalness: .42, roughness: .52, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .15, clearcoatRoughness: .6 }),
-  violeta: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x5b40e0, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0x9a86ff), sheenRoughness: .6 }),
-  violetaSaten: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x7563ec, metalness: .25, roughness: .36, bumpMap: tex(CANVAS.arenado, r), bumpScale: .35, clearcoat: .4, clearcoatRoughness: .35 }),
+  azul: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x00230C, metalness: .42, roughness: .52, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .15, clearcoatRoughness: .6 }),
+  violeta: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x601700, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0xFF3E00), sheenRoughness: .6 }),
+  violetaSaten: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0xFF3E00, metalness: .25, roughness: .36, bumpMap: tex(CANVAS.arenado, r), bumpScale: .35, clearcoat: .4, clearcoatRoughness: .35 }),
   lima: (rx, ry) => new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: tex(CANVAS.limaColor, rx, ry, true), bumpMap: tex(CANVAS.limaBump, rx, ry), bumpScale: 1.6, metalness: .05, roughness: .42, clearcoat: .35, clearcoatRoughness: .4, side: THREE.DoubleSide }),
-  rosa: () => new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: .26, metalness: 0, clearcoat: 1, clearcoatRoughness: .18, sheen: .5, sheenColor: new THREE.Color(0xffb3f2) }),
-  rosaPetalo: () => new THREE.MeshPhysicalMaterial({ color: 0xee6fdc, roughness: .3, clearcoat: 1, clearcoatRoughness: .2, sheen: .4, sheenColor: new THREE.Color(0xffc4f5), side: THREE.DoubleSide }),
-  menta: () => new THREE.MeshPhysicalMaterial({ color: 0x66d9a4, roughness: .3, metalness: .02, clearcoat: .7, clearcoatRoughness: .25, side: THREE.DoubleSide }),
+  rosa: () => new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, roughness: .26, metalness: 0, clearcoat: 1, clearcoatRoughness: .18, sheen: .5, sheenColor: new THREE.Color(0xDDFF88) }),
+  rosaPetalo: () => new THREE.MeshPhysicalMaterial({ color: 0xFF3E00, roughness: .3, clearcoat: 1, clearcoatRoughness: .2, sheen: .4, sheenColor: new THREE.Color(0xDDFF88), side: THREE.DoubleSide }),
+  menta: () => new THREE.MeshPhysicalMaterial({ color: 0x4EF581, roughness: .3, metalness: .02, clearcoat: .7, clearcoatRoughness: .25, side: THREE.DoubleSide }),
   perla: (rx, ry) => new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: tex(CANVAS.perla, rx, ry, true), bumpMap: tex(CANVAS.perlaBump, rx, ry), bumpScale: 1.2, roughness: .5, metalness: .04, clearcoat: .3 }),
-  perlaLisa: () => new THREE.MeshPhysicalMaterial({ color: 0xf4f2ff, roughness: .14, metalness: 0, clearcoat: 1, clearcoatRoughness: .1, iridescence: .7, iridescenceIOR: 1.35, sheen: .3, sheenColor: new THREE.Color(0xd8d0ff) }),
-  jade: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x2f9e78, metalness: .4, roughness: .48, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .25, clearcoatRoughness: .5 }),
-  musgo: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x5f9a2c, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0xc4f08a), sheenRoughness: .6 }),
-  cristal: () => new THREE.MeshPhysicalMaterial({ color: 0xd9ddff, roughness: .08, metalness: .15, clearcoat: 1, clearcoatRoughness: .05, iridescence: 1, iridescenceIOR: 1.5, flatShading: true }),
+  perlaLisa: () => new THREE.MeshPhysicalMaterial({ color: 0xDDFF88, roughness: .14, metalness: 0, clearcoat: 1, clearcoatRoughness: .1, iridescence: .5, iridescenceIOR: 1.35, sheen: .3, sheenColor: new THREE.Color(0xffffff) }),
+  jade: (r = 4) => new THREE.MeshPhysicalMaterial({ color: 0x00E245, metalness: .4, roughness: .48, bumpMap: tex(CANVAS.arenado, r), bumpScale: .9, clearcoat: .25, clearcoatRoughness: .5 }),
+  musgo: (rx = 3, ry = rx) => new THREE.MeshPhysicalMaterial({ color: 0x4EF581, metalness: .02, roughness: .88, bumpMap: tex(CANVAS.pomez, rx, ry), bumpScale: 4, sheen: .6, sheenColor: new THREE.Color(0xDDFF88), sheenRoughness: .6 }),
+  cristal: () => new THREE.MeshPhysicalMaterial({ color: 0x4EF581, roughness: .08, metalness: .15, clearcoat: 1, clearcoatRoughness: .05, iridescence: 1, iridescenceIOR: 1.5, flatShading: true }),
 };
 
 /* ---------- utilidades de geometría ---------- */
@@ -500,7 +500,7 @@ const once = (key, fn) => () => (GEO[key] ??= fn());
 const PIECES = [
   // Memoria
   {
-    id: 'placa', name: 'Placa ósea', mat: 'Metal arenado azul', color: '#6f86e8',
+    id: 'placa', name: 'Placa ósea', mat: 'Metal arenado verde profundo', color: '#00230C',
     geo: once('placa', () => {
       const s = new THREE.Shape();
       s.moveTo(-.15, 0); s.lineTo(.15, 0);
@@ -518,7 +518,7 @@ const PIECES = [
     make() { this.m ??= MAT.azul(5); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'catalejo', name: 'Catalejo', mat: 'Perla punteada y anillo lima', color: '#b9bde0',
+    id: 'catalejo', name: 'Catalejo', mat: 'Perla lima y anillo verde', color: '#DDFF88',
     geo: once('catalejo', () => ({
       body: lathe(320, y => {
         const seg = y < .42 ? .085 : y < .74 ? .066 : .05;
@@ -535,7 +535,7 @@ const PIECES = [
   },
   // Arraigo
   {
-    id: 'tocon', name: 'Tocón', mat: 'Pómez violeta', color: '#5b40e0',
+    id: 'tocon', name: 'Tocón', mat: 'Pómez marrón', color: '#601700',
     geo: once('tocon', () => warp(lathe(160, y => (.085 + .17 * Math.pow(1 - y, 4)) * Math.min(1, (1 - y) * 25, y * 60), 72), v => {
       const y = v.y, a = Math.atan2(v.z, v.x);
       const k = 1 + .3 * Math.pow(1 - y, 3) * Math.pow(Math.max(0, Math.cos(5 * a)), 3) + .22 * (fbm3(v.x * 7, v.y * 7, v.z * 7) - .5);
@@ -544,7 +544,7 @@ const PIECES = [
     make() { this.m ??= MAT.violeta(5, 2); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'arco', name: 'Arco perforado', mat: 'Malla lima', color: '#8fc31f',
+    id: 'arco', name: 'Arco perforado', mat: 'Malla verde', color: '#00E245',
     geo: once('arco', () => {
       const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(.22, .16, .05), V(.33, .5, 0), V(.22, .84, -.05), V(0, 1, 0)]);
       return taperTube(c, u => .062 + .035 * Math.abs(u - .5) ** 3 * 8);
@@ -553,7 +553,7 @@ const PIECES = [
   },
   // Viaje
   {
-    id: 'eje', name: 'Eje', mat: 'Metal arenado y cuenta rosa', color: '#e45fd8',
+    id: 'eje', name: 'Eje', mat: 'Metal verde profundo y cuenta naranja', color: '#FF3E00',
     geo: once('eje', () => ({
       col: lathe(240, y => .046 + .022 * Math.exp(-(((y - .1) / .025) ** 2)) + .022 * Math.exp(-(((y - .9) / .025) ** 2)), 48),
       bead: new THREE.SphereGeometry(.13, 48, 32).scale(1, .82, 1).translate(0, .5, 0),
@@ -565,7 +565,7 @@ const PIECES = [
     },
   },
   {
-    id: 'haz', name: 'Haz', mat: 'Esmalte menta', color: '#66d9a4',
+    id: 'haz', name: 'Haz', mat: 'Esmalte verde claro', color: '#4EF581',
     geo: once('haz', () => {
       const parts = [];
       for (let k = 0; k < 5; k++) {
@@ -579,14 +579,14 @@ const PIECES = [
   },
   // Umbral
   {
-    id: 'menta', name: 'Haba', mat: 'Esmalte menta', color: '#66d9a4',
+    id: 'menta', name: 'Haba', mat: 'Esmalte verde claro', color: '#4EF581',
     geo: once('menta', () => displaced(new THREE.SphereGeometry(.2, 64, 40), v => {
       v.multiply(V(1.15, .75, .85)); v.multiplyScalar(1 + .12 * (fbm3(v.x * 4 + 3, v.y * 4, v.z * 4) - .5));
     })),
     make() { this.m ??= MAT.menta(); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'ojal', name: 'Ojal', mat: 'Metal arenado azul', color: '#8d9eef', sideways: true,
+    id: 'ojal', name: 'Ojal', mat: 'Metal arenado verde profundo', color: '#00230C', sideways: true,
     geo: once('ojal', () => {
       const s = new THREE.Shape();
       s.moveTo(-.12, 0); s.lineTo(.12, 0); s.lineTo(.12, .34); s.absarc(0, .34, .12, 0, Math.PI, false); s.lineTo(-.12, 0);
@@ -599,7 +599,7 @@ const PIECES = [
   },
   // Asombro
   {
-    id: 'cristal', name: 'Cristal', mat: 'Facetas iridiscentes', color: '#a9b0ef',
+    id: 'cristal', name: 'Cristal', mat: 'Facetas verdes iridiscentes', color: '#4EF581',
     geo: once('cristal', () => {
       const a = new THREE.OctahedronGeometry(.16, 0).scale(1, 1.9, 1).translate(0, .3, 0);
       const b = new THREE.OctahedronGeometry(.09, 0).scale(1, 1.8, 1).rotateZ(.6).translate(.11, .2, .03);
@@ -609,7 +609,7 @@ const PIECES = [
     make() { this.m ??= MAT.cristal(); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'capullo', name: 'Capullo', mat: 'Pómez violeta y núcleo rosa', color: '#5b40e0',
+    id: 'capullo', name: 'Capullo', mat: 'Pómez marrón y núcleo naranja', color: '#601700',
     geo: once('capullo', () => ({
       petal: warp(new THREE.SphereGeometry(1, 40, 28).scale(.11, .05, .3), v => { v.y += .9 * (v.z / .3) ** 2 * .06; }).translate(0, 0, .25).rotateX(-1.42),
       core: new THREE.SphereGeometry(.07, 32, 24).translate(0, .52, 0),
@@ -625,7 +625,7 @@ const PIECES = [
   },
   // Legado
   {
-    id: 'cuenco', name: 'Cuenco', mat: 'Malla lima', color: '#8fc31f',
+    id: 'cuenco', name: 'Cuenco', mat: 'Malla verde', color: '#00E245',
     geo: once('cuenco', () => {
       const pts = [new THREE.Vector2(0, 0), new THREE.Vector2(.04, 0), new THREE.Vector2(.035, .08)];
       for (let i = 0; i <= 30; i++) { const t = i / 30; pts.push(new THREE.Vector2(.035 + .21 * Math.sin(t * Math.PI / 2) ** .8, .08 + .24 * t ** 1.6)); }
@@ -637,7 +637,7 @@ const PIECES = [
     make() { this.m ??= MAT.lima(22, 8); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'corola', name: 'Corola', mat: 'Laca rosa y malla lima', color: '#ee6fdc',
+    id: 'corola', name: 'Corola', mat: 'Laca naranja y malla verde', color: '#FF3E00',
     geo: once('corola', () => {
       const petal = new THREE.SphereGeometry(1, 40, 28);
       petal.scale(.085, .042, .25); petal.translate(0, 0, .23); petal.rotateX(-.6);
@@ -654,12 +654,12 @@ const PIECES = [
   },
   // Encuentro
   {
-    id: 'gota', name: 'Gota', mat: 'Nácar', color: '#cfc9e6',
+    id: 'gota', name: 'Gota', mat: 'Nácar lima', color: '#DDFF88',
     geo: once('gota', () => lathe(160, y => .16 * Math.sin(Math.PI * Math.pow(y, .62)) ** 1.1, 64).translate(0, -.42, 0)),
     make() { this.m ??= MAT.perlaLisa(); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'racimo', name: 'Racimo', mat: 'Menta, rosa y nácar', color: '#a6d42c',
+    id: 'racimo', name: 'Racimo', mat: 'Verde claro, naranja y nácar', color: '#4EF581',
     geo: once('racimo', () => new THREE.SphereGeometry(1, 40, 28)),
     spots: [[0, 0, 0, .1, 0], [.15, .05, .02, .075, 1], [-.13, .07, .05, .08, 2], [.03, .16, -.06, .07, 1], [-.04, -.1, .1, .07, 0], [.1, -.08, -.1, .065, 2], [-.12, -.04, -.12, .06, 1], [.05, .02, .16, .06, 2]],
     make() {
@@ -671,12 +671,12 @@ const PIECES = [
   },
   // Maestría
   {
-    id: 'vertebra', name: 'Vértebra', mat: 'Metal arenado jade', color: '#2f9e78',
+    id: 'vertebra', name: 'Vértebra', mat: 'Metal arenado verde', color: '#00E245',
     geo: once('vertebra', () => lathe(260, y => .062 + .042 * Math.pow(.5 + .5 * Math.cos(TAU * 5 * y), .7) * (1 - .3 * y) * Math.min(1, y * 30, (1 - y) * 30) + .01, 64)),
     make() { this.m ??= MAT.jade(3); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'cuerno', name: 'Cuerno', mat: 'Pómez musgo', color: '#5f9a2c',
+    id: 'cuerno', name: 'Cuerno', mat: 'Pómez verde claro', color: '#4EF581',
     geo: once('cuerno', () => {
       const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(.02, .3, .03), V(.12, .62, 0), V(.2, .85, -.04), V(.16, 1, .01)]);
       return taperTube(c, u => (.07 + .065 * smooth(.25, .85, u)) * caps(u, .05, .16), { rough: .38, freq: 7 });
@@ -685,12 +685,12 @@ const PIECES = [
   },
   // Renovación
   {
-    id: 'pildora', name: 'Píldora', mat: 'Perla punteada', color: '#b9bde0',
+    id: 'pildora', name: 'Píldora', mat: 'Perla lima punteada', color: '#DDFF88',
     geo: once('pildora', () => { const g = new THREE.CapsuleGeometry(.11, .42, 12, 40); g.rotateZ(Math.PI / 2); g.scale(1, 1, .7); return g; }),
     make() { this.m ??= MAT.perla(10, 11); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'muda', name: 'Muda', mat: 'Laca rosa torcida', color: '#ee6fdc',
+    id: 'muda', name: 'Muda', mat: 'Laca naranja torcida', color: '#FF3E00',
     geo: once('muda', () => warp(new THREE.CylinderGeometry(1, 1, 1, 48, 120), v => {
       const t = v.y + .5, w = .15 * Math.sin(Math.PI * t) ** .35 + .02, th = .04 * Math.sin(Math.PI * t) ** .35 + .008;
       let x = v.x * w, z = v.z * th; const a = t * TAU * .8;
@@ -701,7 +701,7 @@ const PIECES = [
   },
   // Fecundidad
   {
-    id: 'hoja', name: 'Lóbulo', mat: 'Malla lima', color: '#a6d42c',
+    id: 'hoja', name: 'Lóbulo', mat: 'Malla verde', color: '#00E245',
     geo: once('hoja', () => {
       const g = new THREE.SphereGeometry(1, 64, 64);
       const p = g.attributes.position;
@@ -720,13 +720,13 @@ const PIECES = [
     make() { this.m ??= MAT.lima(18, 12); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'semilla', name: 'Semilla', mat: 'Laca rosa', color: '#e45fd8', floats: true,
+    id: 'semilla', name: 'Semilla', mat: 'Laca naranja', color: '#FF3E00', floats: true,
     geo: once('semilla', () => {
       const g = displaced(new THREE.SphereGeometry(.26, 80, 56), v => {
         const k = 1 + .22 * (fbm3(v.x * 2.4 + 9, v.y * 2.4, v.z * 2.4) - .5) + .12 * v.y / .26;
         v.multiplyScalar(k); v.y *= .92;
       });
-      const p = g.attributes.position, col = [], a = new THREE.Color(0xc23fe0), b = new THREE.Color(0xff74d8), red = new THREE.Color(0xff3f6a), c = new THREE.Color();
+      const p = g.attributes.position, col = [], a = new THREE.Color(0x601700), b = new THREE.Color(0xFF3E00), red = new THREE.Color(0xDDFF88), c = new THREE.Color();
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
         c.copy(a).lerp(b, smooth(-.2, .25, y + .1 * x));
@@ -741,7 +741,7 @@ const PIECES = [
   },
   // Retorno
   {
-    id: 'aguja', name: 'Aguja', mat: 'Metal arenado azul', color: '#5d73d6',
+    id: 'aguja', name: 'Aguja', mat: 'Metal arenado verde profundo', color: '#00230C',
     geo: once('aguja', () => lathe(420, y => {
       let r = .024 * (1 - .86 * smooth(.5, 1, y));
       if (y > .1 && y < .62 && fract(y * 9) < .14) r *= .7;
@@ -751,7 +751,7 @@ const PIECES = [
     make() { this.m ??= MAT.azul(3); return mesh(this.geo(), this.m); },
   },
   {
-    id: 'gancho', name: 'Gancho', mat: 'Satén violeta', color: '#7563ec',
+    id: 'gancho', name: 'Gancho', mat: 'Satén naranja', color: '#FF3E00',
     geo: once('gancho', () => {
       const c = new THREE.CatmullRomCurve3([V(0, 0, 0), V(0, .35, 0), V(.02, .62, 0), V(.1, .82, 0), V(.22, .84, 0), V(.29, .7, 0), V(.28, .52, 0)]);
       return taperTube(c, u => .026 * (1 - .75 * smooth(.55, 1, u)) * caps(u, .03, .04), { ts: 140, rs: 20 });
@@ -813,10 +813,10 @@ const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 
 
 function studio(scene) {
   scene.environment = env;
-  scene.add(new THREE.HemisphereLight(0xe4e6ff, 0x5a4bc8, .9));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x4EF581, .8));
   const key = new THREE.DirectionalLight(0xfff6ee, 2.2); key.position.set(-3, 5, 4); scene.add(key);
-  const rim = new THREE.DirectionalLight(0x7d6bff, 2.6); rim.position.set(4, 2, -4); scene.add(rim);
-  const fill = new THREE.DirectionalLight(0xb8c4ff, .7); fill.position.set(3, -2, 3); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xDDFF88, 2.2); rim.position.set(4, 2, -4); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0xffffff, .7); fill.position.set(3, -2, 3); scene.add(fill);
   return key;
 }
 
