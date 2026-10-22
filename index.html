@@ -40,8 +40,8 @@
   .frame { height: 100dvh; display: grid; grid-template-rows: auto 1fr; gap: 14px; padding: 14px; }
   .app {
     display: grid; min-height: 0;
-    grid-template-columns: minmax(320px, 400px) 1fr minmax(300px, 340px);
-    grid-template-areas: "cat stage mix";
+    grid-template-columns: minmax(360px, 460px) 1fr;
+    grid-template-areas: "cat stage";
     gap: 14px;
   }
   .app[hidden], .forest[hidden] { display: none; }
@@ -175,8 +175,10 @@
   .card figcaption { text-align: center; margin-top: 2px; transition: opacity .25s ease; }
   .card figcaption b { display: block; font-family: var(--serif); font-style: normal; font-weight: 400; font-size: 17px; }
   .card figcaption span { font-size: 10.5px; color: var(--ink-soft); }
-  .tbar { position: relative; height: 4px; border-radius: 4px; margin: 8px 4px 0; background: linear-gradient(to right, var(--ca) var(--p), var(--cb) var(--p)); }
-  .tbar::after { content: ""; position: absolute; top: 50%; left: var(--p); width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 1px solid rgba(0,0,0,.3); transform: translate(-50%, -50%); box-shadow: 0 2px 5px rgba(0,0,0,.2); transition: left .2s ease; }
+  .tsl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; margin: 8px 2px 0; cursor: default; }
+  .tsl output { font-size: 10.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+  .catalog .cat-hint { margin: -2px 16px 10px; }
+  .cat-presets { margin: 0 12px 12px; }
   .desc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; }
   .desc > div { overflow: hidden; }
   .card.open .desc { grid-template-rows: 1fr; }
@@ -217,8 +219,6 @@
   button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
   /* Mezclador */
-  .mixer { grid-area: mix; display: flex; flex-direction: column; }
-  .mixer .scroll { overflow-y: auto; padding: 0 16px 16px; scrollbar-width: thin; }
   .hint { font-size: 12px; color: var(--ink-soft); margin: -2px 0 12px; line-height: 1.45; }
   .group { padding: 10px 0 4px; border-top: 1px solid var(--line); }
   .group h3 { margin: 0 0 4px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
@@ -244,16 +244,15 @@
   @media (max-width: 1150px) {
     body { overflow: auto; }
     .frame { height: auto; }
-    .app { grid-template-columns: 1fr 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage stage" "cat mix"; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage" "cat"; }
     .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
     .tejido { grid-template-columns: 1fr; grid-template-rows: 55vh 65vh; grid-template-areas: "weave" "tst"; }
     .flist .scroll { overflow: visible; }
     .cards { overflow: visible; }
-    .mixer .scroll { overflow: visible; }
   }
   @media (max-width: 720px) {
     .frame { padding: 10px 16px; }
-    .app { grid-template-columns: 1fr; grid-template-rows: 68vh auto auto; grid-template-areas: "stage" "mix" "cat"; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 68vh auto; grid-template-areas: "stage" "cat"; }
     nav.views { margin-left: 0; }
   }
   /* Ritmo tipográfico: Helvetica en tres pesos.
@@ -313,6 +312,8 @@
 
   <section class="panel catalog" aria-label="Catálogo de tensiones">
     <div class="panel-head"><h2>Catálogo</h2><span class="tag">11 tensiones · 22 piezas</span></div>
+    <p class="hint cat-hint">Cada deslizador reparte su función del árbol entre dos geometrías. Toca una tarjeta para leer su tensión.</p>
+    <div class="presets cat-presets" id="presets"></div>
     <div class="cards" id="cards"></div>
   </section>
 
@@ -331,15 +332,6 @@
     </div>
   </section>
 
-  <section class="panel mixer" aria-label="Tensiones">
-    <div class="panel-head"><h2>Tensiones</h2><span class="tag">entre dos polos</span></div>
-    <div class="scroll">
-      <p class="hint">Cada deslizador reparte su función del árbol entre dos geometrías. Al centro conviven; en un extremo, un solo polo toma todo su lugar.</p>
-      <div class="presets" id="presets"></div>
-      <div id="groups"></div>
-      <div class="group" id="shape"><h3><span>Forma</span></h3></div>
-    </div>
-  </section>
   </div>
 
   <div class="forest" id="bosque" hidden>
@@ -926,7 +918,7 @@ const cards = CONCEPTS.map((c, i) => {
       <figure><div class="view"></div><figcaption class="fa"><b>${c.a}</b><span>${A.name}</span></figcaption></figure>
       <figure><div class="view"></div><figcaption class="fb"><b>${c.b}</b><span>${B.name}</span></figcaption></figure>
     </div>
-    <div class="tbar"></div>
+    <div class="tsl"><input type="range" min="0" max="100" step="1" aria-label="${c.name}: de ${c.a} a ${c.b}"><output></output></div>
     <div class="desc"><div><p>${c.text}</p><span class="pair">${c.a} ↔ ${c.b} · ${A.mat} / ${B.mat}</span></div></div>
     <span class="more">Leer</span>`;
   cardsEl.appendChild(el);
@@ -943,12 +935,7 @@ const cards = CONCEPTS.map((c, i) => {
 function openCard(card) {
   const open = !card.el.classList.contains('open');
   for (const k of cards) { k.el.classList.toggle('open', k === card && open); k.el.setAttribute('aria-expanded', k === card && open); }
-  if (open) {
-    setTimeout(() => card.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 360);
-    const { row } = rows[card.c.id];
-    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 900);
-  }
+  if (open) setTimeout(() => card.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 360);
 }
 
 /* árbol */
@@ -1119,55 +1106,24 @@ function setRoot(on) {
 
 /* ---------- interfaz ---------- */
 const rows = {};
-const groupsEl = document.getElementById('groups');
-for (const role of ROLES) {
-  const g = document.createElement('div'); g.className = 'group';
-  g.innerHTML = `<h3><span>${role.label}</span><span>${role.note}</span></h3>`;
-  for (const c of ROLE(role.key)) {
-    const A = BY[c.A], B = BY[c.B];
-    const row = document.createElement('label'); row.className = 'trow';
-    row.dataset.ca = A.color; row.dataset.cb = B.color;
-    row.innerHTML = `<div class="rt"><span class="nm"><small>${c.n}</small>${c.name}</span><output></output></div>
-      <input type="range" min="0" max="100" step="1" aria-label="${c.name}: de ${c.a} a ${c.b}">
-      <div class="pl"><span>${c.a}</span><span>${c.b}</span></div>`;
-    const input = row.querySelector('input'), out = row.querySelector('output'), [pa, pb] = row.querySelectorAll('.pl span');
-    input.addEventListener('input', () => { state.mix[c.id] = +input.value; syncRow(c.id); schedule(false); });
-    rows[c.id] = { row, input, out, pa, pb };
-    g.appendChild(row);
-  }
-  groupsEl.appendChild(g);
+for (const card of cards) {
+  const c = card.c, A = BY[c.A], B = BY[c.B], tsl = card.el.querySelector('.tsl');
+  const input = tsl.querySelector('input'), out = tsl.querySelector('output');
+  // el deslizador no abre ni cierra la tarjeta
+  ['click', 'pointerdown', 'keydown'].forEach(ev => tsl.addEventListener(ev, e => e.stopPropagation()));
+  input.addEventListener('input', () => { state.mix[c.id] = +input.value; syncRow(c.id); schedule(false); });
+  rows[c.id] = { row: card.el, input, out, pa: card.fa, pb: card.fb, ca: A.color, cb: B.color };
 }
 const weight = v => .35 + .65 * v / 100;
 function syncRow(id) {
-  const { input, out, pa, pb } = rows[id], v = state.mix[id];
+  const { input, out, pa, pb, ca, cb, row } = rows[id], v = state.mix[id];
   input.value = v; out.textContent = `${100 - v} · ${v}`;
   pa.style.opacity = weight(100 - v); pb.style.opacity = weight(v);
-  rows[id].row.style.setProperty('--track', `linear-gradient(to right, ${rows[id].row.dataset.ca} ${v}%, ${rows[id].row.dataset.cb} ${v}%)`);
-  const card = cards.find(k => k.c.id === id);
-  card.el.style.setProperty('--p', v + '%');
-  card.fa.style.opacity = weight(100 - v); card.fb.style.opacity = weight(v);
+  row.style.setProperty('--track', `linear-gradient(to right, ${ca} ${v}%, ${cb} ${v}%)`);
 }
 function syncAll() { CONCEPTS.forEach(c => syncRow(c.id)); }
 
-const shapeEl = document.getElementById('shape');
 const shapeSyncs = [];
-const SHAPE = [
-  { key: 'depth', label: 'Profundidad', min: 2, max: 5, step: 1, fmt: v => v },
-  { key: 'branching', label: 'Ramificación', min: 1, max: 4, step: 1, fmt: v => v },
-  { key: 'spread', label: 'Apertura', min: 10, max: 75, step: 1, fmt: v => v + '°' },
-];
-for (const s of SHAPE) {
-  const row = document.createElement('label'); row.className = 'srow';
-  row.innerHTML = `<span class="nm">${s.label}</span><input type="range" min="${s.min}" max="${s.max}" step="${s.step}" aria-label="${s.label}"><output></output>`;
-  const input = row.querySelector('input'), out = row.querySelector('output');
-  const sync = () => {
-    const p = (state[s.key] - s.min) / (s.max - s.min) * 100;
-    input.value = state[s.key]; out.textContent = s.fmt(state[s.key]);
-    input.style.setProperty('--track', `linear-gradient(to right, #00E245 ${p}%, #D4D4D4 ${p}%)`);
-  };
-  input.addEventListener('input', () => { state[s.key] = +input.value; sync(); schedule(false); });
-  sync(); shapeSyncs.push(sync); shapeEl.appendChild(row);
-}
 
 const presetsEl = document.getElementById('presets');
 for (const name of [...Object.keys(PRESETS), 'Azar']) {
