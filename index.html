@@ -253,6 +253,13 @@
   .trow output { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); }
   .trow .pl { display: flex; justify-content: space-between; font-family: var(--serif); font-style: normal; font-size: 14px; line-height: 1; }
   .trow .pl span { transition: opacity .2s ease; }
+  .card.forma { cursor: default; }
+  .card.forma:hover { transform: none; }
+  .frow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 1.4fr) 40px; align-items: center; gap: 12px; padding: 7px 2px 0; }
+  .frow .fl { display: flex; flex-direction: column; min-width: 0; }
+  .frow .fl b { font-weight: 200; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
+  .frow .fl span { font-size: 10.5px; color: var(--ink-soft); }
+  .frow output { font-size: 11px; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; }
   .srow { display: grid; grid-template-columns: 1fr 120px 32px; align-items: center; gap: 9px; padding: 5px 0; }
   .srow .nm { font-size: 12.5px; }
   .srow output { font-family: var(--mono); font-size: 11px; text-align: right; color: var(--ink-soft); }
@@ -1220,7 +1227,32 @@ function syncRow(id) {
 }
 function syncAll() { CONCEPTS.forEach(c => syncRow(c.id)); }
 
+// forma del árbol: una tarjeta más al final del catálogo, con tres deslizadores
 const shapeSyncs = [];
+const SHAPE = [
+  { key: 'depth', label: 'Profundidad', hint: 'cuántas veces se ramifica', min: 2, max: 5, step: 1, fmt: v => v },
+  { key: 'branching', label: 'Ramificación', hint: 'ramas en cada unión', min: 1, max: 4, step: 1, fmt: v => v },
+  { key: 'spread', label: 'Apertura', hint: 'ángulo entre ramas', min: 10, max: 75, step: 1, fmt: v => v + '°' },
+];
+{
+  const el = document.createElement('article');
+  el.className = 'card forma';
+  el.innerHTML = `<div class="top"><span class="num">12</span><h3>Forma</h3><span class="role">árbol</span></div>`;
+  for (const sh of SHAPE) {
+    const row = document.createElement('label'); row.className = 'frow';
+    row.innerHTML = `<span class="fl"><b>${sh.label}</b><span>${sh.hint}</span></span>
+      <input type="range" min="${sh.min}" max="${sh.max}" step="${sh.step}" aria-label="${sh.label}"><output></output>`;
+    const input = row.querySelector('input'), out = row.querySelector('output');
+    const sync = () => {
+      const p = (state[sh.key] - sh.min) / (sh.max - sh.min) * 100;
+      input.value = state[sh.key]; out.textContent = sh.fmt(state[sh.key]);
+      input.style.setProperty('--track', `linear-gradient(to right, #00E245 ${p}%, #D4D4D4 ${p}%)`);
+    };
+    input.addEventListener('input', () => { state[sh.key] = +input.value; sync(); schedule(false); });
+    sync(); shapeSyncs.push(sync); el.appendChild(row);
+  }
+  cardsEl.appendChild(el);
+}
 
 const presetsEl = document.getElementById('presets');
 for (const name of [...Object.keys(PRESETS), 'Azar']) {
