@@ -130,6 +130,16 @@
   .vview:active { cursor: grabbing; }
   .vfoot { display: flex; justify-content: space-between; align-items: center; }
 
+  /* Tarjeta del ciervo */
+  .deercard { position: absolute; left: 16px; bottom: 16px; z-index: 9; width: min(380px, calc(100% - 32px)); padding: 18px 20px 20px; border-radius: 14px;
+    background: var(--g3); box-shadow: 0 20px 44px -22px rgba(0,0,0,.45); pointer-events: auto; cursor: default; }
+  .deercard[hidden] { display: none; }
+  .deercard h2 { margin: 2px 0 8px; font-weight: 700; font-size: 30px; letter-spacing: .02em; }
+  .deercard p { margin: 0; font-size: 13px; line-height: 1.55; }
+  .deercard .tag { color: var(--accent-strong); color: var(--ink-soft); }
+  .deercard .dclose { position: absolute; top: 12px; right: 12px; padding: 6px 10px; font-size: 11px; }
+  #forestStage.over-deer { cursor: pointer; }
+
   /* Buscador del bosque */
   .search { position: relative; margin: 0 12px 10px; }
   .search input { width: 100%; font: 400 14px/1 var(--sans); color: var(--ink); padding: 10px 70px 10px 34px; border-radius: 99px; border: 0; background: var(--g3);
@@ -403,6 +413,12 @@
         <button id="btnForestAll" title="Ver todo el bosque">Ver todo</button>
       </div>
       <div class="flabels" id="flabels"></div>
+      <div class="deercard" id="deerCard" hidden role="dialog" aria-labelledby="deerTitle">
+        <button type="button" class="dclose" id="deerClose" aria-label="Cerrar">Cerrar</button>
+        <div class="tag">División de Innovación Curricular</div>
+        <h2 id="deerTitle">DIGINEXA</h2>
+        <p>DIGINEXA es la División de Innovación Curricular de la Universidad El Bosque. Acompaña a los programas en el diseño y la transformación de sus currículos, para que lo que se enseña dialogue con los saberes, las tecnologías y las preguntas de cada tiempo. Como el ciervo que recorre el bosque sin pertenecer a un solo árbol, cruza facultades y disciplinas y abre senderos entre ellas, para que el aprendizaje siga creciendo.</p>
+      </div>
       <div class="empty" id="forestEmpty"><div><b>El bosque está vacío</b>Guarda un árbol desde el taller para plantarlo aquí.</div></div>
     </section>
     <section class="panel flist" aria-label="Árboles guardados">
@@ -1562,6 +1578,7 @@ function plant() {
   sc.left = sc.bottom = -R; sc.right = sc.top = R; sc.near = .1; sc.far = R * 8; sc.updateProjectionMatrix();
   fkey.target.position.set(0, 0, 0); fkey.position.copy(V(-3, 5, 4).setLength(R * 3));
   weaveRoots();
+  placeDeer();
   forestDirty = false;
   fitForest();
   applySearch();
@@ -1753,6 +1770,105 @@ function toast(msg, link) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
 }
 document.getElementById('toastGo').addEventListener('click', () => { document.getElementById('toast').classList.remove('show'); setView('bosque'); });
+
+/* ---------- el ciervo: camina entre los árboles por las calles de la cuadrícula ---------- */
+const deer = (() => {
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const laca = MAT.rosaPetalo(), metal = MAT.azul(3), cuerno = MAT.jade(3), nacar = MAT.perlaLisa(), ojo = new THREE.MeshPhysicalMaterial({ color: 0x00230C, roughness: .2, clearcoat: 1 });
+  const add = (geo, mat, parent = body) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; parent.add(m); return m; };
+  // tronco y cuello
+  add(new THREE.CapsuleGeometry(.22, .72, 10, 28).rotateX(Math.PI / 2).scale(1, 1.05, 1), laca).position.set(0, 1.2, 0);
+  const neck = add(new THREE.CapsuleGeometry(.1, .32, 8, 20), laca); neck.position.set(0, 1.48, .48); neck.rotation.x = .6;
+  const head = new THREE.Group(); head.position.set(0, 1.68, .66); body.add(head);
+  add(new THREE.CapsuleGeometry(.13, .26, 8, 20).rotateX(Math.PI / 2 - .35), laca, head).position.set(0, 0, .1);
+  add(new THREE.SphereGeometry(.07, 20, 14), nacar, head).position.set(0, -.07, .3);
+  for (const sx of [-1, 1]) {
+    add(new THREE.SphereGeometry(.028, 12, 10), ojo, head).position.set(.1 * sx, .05, .12);
+    const ear = add(new THREE.SphereGeometry(1, 16, 12).scale(.05, .11, .025), laca, head); ear.position.set(.13 * sx, .12, -.02); ear.rotation.z = -.9 * sx;
+    // astas: ramas como las del árbol, en verde
+    const ant = new THREE.Group(); ant.scale.setScalar(1.45); head.add(ant);
+    const beam = new THREE.CatmullRomCurve3([V(.05 * sx, .1, 0), V(.16 * sx, .38, -.06), V(.26 * sx, .62, -.02), V(.3 * sx, .82, .08)]);
+    add(taperTube(beam, u => .034 * (1 - .55 * u) * caps(u, .02, .12), { ts: 40, rs: 10 }), cuerno, ant);
+    for (const [u, dx, dy, dz] of [[.35, .14, .2, .12], [.6, -.02, .25, .14], [.8, .12, .18, -.04]]) {
+      const p0 = beam.getPointAt(u);
+      const tine = new THREE.CatmullRomCurve3([p0, p0.clone().add(V(dx * sx * .5, dy * .6, dz * .5)), p0.clone().add(V(dx * sx, dy, dz))]);
+      add(taperTube(tine, v => .024 * (1 - .7 * v) * caps(v, .02, .2), { ts: 16, rs: 8 }), cuerno, ant);
+      add(new THREE.SphereGeometry(.03, 12, 10), nacar, ant).position.copy(tine.getPointAt(1));
+    }
+  }
+  add(new THREE.SphereGeometry(.08, 16, 12), nacar).position.set(0, 1.3, -.6);
+  // patas: cada una cuelga de su cadera y oscila al caminar
+  const legGeo = lathe(80, y => (.055 - .03 * y) * (1 + .3 * Math.exp(-(((y - .45) / .06) ** 2))), 16).rotateX(Math.PI).translate(0, 1, 0);
+  const legs = [];
+  for (const [x, z, ph] of [[-.13, .38, 0], [.13, .38, Math.PI], [-.13, -.38, Math.PI], [.13, -.38, 0]]) {
+    const hip = new THREE.Group(); hip.position.set(x, 1.05, z); body.add(hip);
+    const leg = add(legGeo, metal, hip); leg.scale.set(1, 1.05, 1); leg.position.y = -1.05;
+    add(new THREE.SphereGeometry(.045, 12, 10).scale(1, .7, 1.2), nacar, hip).position.set(0, -1.03, .02);
+    legs.push({ hip, ph });
+  }
+  g.scale.setScalar(1.3);
+  g.traverse(m => { if (m.isMesh) m.userData.deer = true; });
+  g.userData = { legs, head, body, from: V(0, 0, 0), to: V(0, 0, 0), t: 1, len: 1, phase: 0, heading: 0 };
+  return g;
+})();
+forestScene.add(deer);
+const DEER_SPEED = 1.1;
+// elige la siguiente esquina de cuadrante (las calles entre árboles), sin alejarse del bosque
+function deerNext() {
+  const u = deer.userData, cx = Math.round(u.to.x / CELL - .5), cz = Math.round(u.to.z / CELL - .5);
+  const reach = forestTrees.reduce((m, f) => Math.max(m, Math.abs(f.cell[0]), Math.abs(f.cell[1])), 1) + 1;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dz]) => Math.abs(cx + dx) <= reach && Math.abs(cz + dz) <= reach);
+  // prefiere seguir derecho; a veces dobla
+  const fwd = dirs.find(([dx, dz]) => dx === Math.sign(u.to.x - u.from.x) && dz === Math.sign(u.to.z - u.from.z));
+  const [dx, dz] = fwd && Math.random() < .6 ? fwd : dirs[Math.floor(Math.random() * dirs.length)];
+  u.from.copy(u.to);
+  u.to.set((cx + dx + .5) * CELL, 0, (cz + dz + .5) * CELL);
+  u.len = u.from.distanceTo(u.to); u.t = 0;
+}
+function placeDeer() {
+  const u = deer.userData; u.to.set(.5 * CELL, 0, .5 * CELL); u.from.copy(u.to).add(V(-CELL, 0, 0)); u.t = 1; deerNext();
+}
+function walkDeer(dt) {
+  const u = deer.userData;
+  u.t += dt * DEER_SPEED / u.len;
+  if (u.t >= 1) deerNext();
+  // camino con una ligera curva para que no parezca un riel
+  const p = u.from.clone().lerp(u.to, u.t), side = Math.sin(u.t * Math.PI) * .35;
+  const dir = u.to.clone().sub(u.from).normalize();
+  p.add(V(-dir.z, 0, dir.x).multiplyScalar(side));
+  deer.position.set(p.x, relief(p.x, p.z) - .02, p.z);
+  const target = Math.atan2(dir.x + Math.cos(u.t * Math.PI) * -dir.z * .35, dir.z + Math.cos(u.t * Math.PI) * dir.x * .35);
+  let dh = target - u.heading; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+  u.heading += dh * (1 - Math.exp(-dt * 4)); deer.rotation.y = u.heading;
+  u.phase += dt * DEER_SPEED * 5.2;
+  for (const l of u.legs) l.hip.rotation.x = Math.sin(u.phase + l.ph) * .42;
+  u.body.position.y = Math.abs(Math.sin(u.phase)) * .04;
+  u.head.rotation.x = Math.sin(u.phase * 2) * .04;
+}
+// clic en el ciervo: se abre la tarjeta de DIGINEXA
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function hitDeer(e) {
+  const r = forestStageEl.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, forestCam);
+  return ray.intersectObject(deer, true).length > 0;
+}
+let downAt = null;
+forestStageEl.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+forestStageEl.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  if (hitDeer(e)) { document.getElementById('deerCard').hidden = false; fcontrols.autoRotate = false; }
+});
+let hoverTick = 0;
+forestStageEl.addEventListener('pointermove', e => {
+  if (e.buttons || performance.now() - hoverTick < 60) return;
+  hoverTick = performance.now();
+  forestStageEl.classList.toggle('over-deer', hitDeer(e));
+});
+const deerCard = document.getElementById('deerCard');
+['pointerdown', 'wheel'].forEach(ev => deerCard.addEventListener(ev, e => e.stopPropagation()));
+document.getElementById('deerClose').addEventListener('click', () => deerCard.hidden = true);
+addEventListener('keydown', e => { if (e.key === 'Escape') deerCard.hidden = true; });
 
 /* ---------- tejido: cada árbol guardado es un hilo de color ---------- */
 const countsCache = new Map();
@@ -1980,6 +2096,7 @@ function glide(cam, ctl, f) {
 }
 const _p = new THREE.Vector3();
 function frameForest(now, w, h) {
+  walkDeer(Math.min(.05, (now - (frameForest.last || now)) / 1000)); frameForest.last = now;
   // los caminos entre raíces crecen pieza a pieza, de un árbol hacia el vecino
   if (!connDone) {
     let busy = false;
