@@ -79,6 +79,29 @@
   .ftree .acts button { padding: 5px 9px; font-size: 11px; box-shadow: none; }
   .ftree .acts .del.sure { background: #FF3E00; color: #fff; border-color: #FF3E00; }
 
+  /* Tejido */
+  .tejido { display: grid; min-height: 0; grid-template-columns: 1fr minmax(320px, 460px); grid-template-areas: "weave tst"; gap: 14px; }
+  .tejido[hidden] { display: none; }
+  .weave-panel { grid-area: weave; display: flex; flex-direction: column; position: relative; }
+  .weave-hint { margin: -2px 16px 12px; }
+  #tejStage { grid-area: tst; }
+  #tejStage .tr { top: auto; bottom: 12px; left: 12px; right: 12px; justify-content: flex-end; }
+  .weave { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: var(--gap, 3px); scrollbar-width: thin; }
+  .wrow { flex: none; display: flex; height: var(--rh, 14px); border-radius: 2px; overflow: hidden; cursor: pointer; transition: transform .15s ease, opacity .2s ease, box-shadow .15s ease; transform-origin: center; }
+  .wrow i { display: block; height: 100%; }
+  .weave:hover .wrow { opacity: .45; }
+  .weave .wrow:hover, .weave .wrow.on { opacity: 1; }
+  .weave .wrow:hover { transform: scaleY(1.7); z-index: 1; }
+  .wrow.on { box-shadow: 0 0 0 2px var(--g3), 0 0 0 4px var(--accent); }
+  .wrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .weave-empty[hidden] { display: none; }
+  .wtip { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .12s ease; white-space: nowrap;
+    padding: 6px 12px 7px; border-radius: 99px; background: var(--g3); box-shadow: 0 0 0 1px var(--g1), 0 10px 24px -14px rgba(0,0,0,.4);
+    font-weight: 200; font-size: 22px; letter-spacing: -0.01em; color: var(--ink); }
+  .wtip small { font-weight: 700; font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); margin-left: 8px; vertical-align: middle; }
+  .wtip.show { opacity: 1; }
+  button:disabled { opacity: .4; cursor: default; }
+
   /* Buscador del bosque */
   .search { position: relative; margin: 0 12px 10px; }
   .search input { width: 100%; font: 400 14px/1 var(--sans); color: var(--ink); padding: 10px 70px 10px 34px; border-radius: 99px; border: 0; background: var(--g3);
@@ -218,6 +241,7 @@
     .frame { height: auto; }
     .app { grid-template-columns: 1fr 1fr; grid-template-rows: 70vh auto; grid-template-areas: "stage stage" "cat mix"; }
     .forest { grid-template-columns: 1fr; grid-template-rows: 70vh auto; grid-template-areas: "fst" "flist"; }
+    .tejido { grid-template-columns: 1fr; grid-template-rows: 60vh 60vh; grid-template-areas: "tst" "weave"; }
     .flist .scroll { overflow: visible; }
     .cards { overflow: visible; }
     .mixer .scroll { overflow: visible; }
@@ -276,6 +300,7 @@
     <nav class="views" aria-label="Secciones">
       <button data-view="taller" aria-current="page">Taller</button>
       <button data-view="bosque">Bosque<span class="n" id="forestCount">0</span></button>
+      <button data-view="tejido">Tejido</button>
     </nav>
   </header>
 
@@ -332,7 +357,26 @@
       <p class="nofound" id="noFound" hidden>Ningún árbol se llama así.</p>
     </section>
   </div>
+
+  <div class="tejido" id="tejido" hidden>
+    <section class="panel weave-panel" aria-label="Tejido de árboles">
+      <div class="panel-head"><h2>Tejido</h2><span class="tag" id="weaveTag">0 hilos</span></div>
+      <p class="hint weave-hint">Cada hilo es un árbol: sus piezas, en proporción y color. Pasa por encima para ver de quién es; haz clic para verlo crecer.</p>
+      <div class="weave" id="weave" role="listbox" aria-label="Árboles guardados"></div>
+      <div class="empty weave-empty" id="weaveEmpty"><div><b>Todavía no hay hilos</b>Guarda árboles desde el taller para tejerlos aquí.</div></div>
+    </section>
+    <section class="stage" id="tejStage" aria-label="Árbol elegido del tejido (arrastra para girar)">
+      <div class="overlay tl"><div class="tag" id="tejMeta">Árbol</div><div class="big" id="tejName">—</div></div>
+      <div class="overlay tr">
+        <button class="rootToggle" aria-pressed="false" title="Mostrar la raíz (T)">Raíz</button>
+        <button id="tejForest" disabled>Ver en el bosque</button>
+        <button id="tejOpen" class="primary" disabled>Abrir en el taller</button>
+      </div>
+      <div class="empty" id="tejEmpty"><div><b>Elige un hilo</b>El árbol aparecerá aquí.</div></div>
+    </section>
+  </div>
 </div>
+<div class="wtip" id="wtip" aria-hidden="true"></div>
 
 <dialog id="saveDlg">
   <form method="dialog" id="saveForm">
@@ -973,7 +1017,10 @@ function build(target, isRoot, counts, P = state, list = pieces) {
     return p1.multiplyScalar(Math.cos(az)).addScaledVector(p2, Math.sin(az));
   };
   function place(id, pos, dir, scale, depth, extra = {}) {
-    const r = extra.r || rnd, obj = BY[id].make();
+    const r = extra.r || rnd;
+    // sin destino solo se cuenta; se consumen los mismos azares para no desviar la semilla
+    if (!target) { r(); r(); r(); n++; counts[id] = (counts[id] || 0) + 1; return; }
+    const obj = BY[id].make();
     obj.position.copy(pos);
     obj.quaternion.setFromUnitVectors(UP, dir);
     obj.rotateY(r() * TAU);
@@ -1059,6 +1106,8 @@ function setRoot(on) {
   document.querySelectorAll('#btnRoot, .rootToggle').forEach(b => b.setAttribute('aria-pressed', on));
   refit();
   forestRoots(on);
+  if (tej) { tej.root.visible = on; if (on) { tej.rs = performance.now(); tej.list.forEach(o => { if (o.userData.root) o.scale.setScalar(1e-4); }); tej.done = false; } refitTej(); }
+  tcontrols.maxPolarAngle = on ? Math.PI : GROUND_POLAR;
 }
 
 /* ---------- interfaz ---------- */
@@ -1397,6 +1446,7 @@ function renderList() {
   }
   markSelected();
   applySearch();
+  if (VIEW === 'tejido') renderWeave();
 }
 // búsqueda sin distinguir mayúsculas ni tildes
 const fold = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -1455,18 +1505,116 @@ function toast(msg, link) {
 }
 document.getElementById('toastGo').addEventListener('click', () => { document.getElementById('toast').classList.remove('show'); setView('bosque'); });
 
+/* ---------- tejido: cada árbol guardado es un hilo de color ---------- */
+const countsCache = new Map();
+function countsFor(t) {
+  const key = t.id + ':' + JSON.stringify([t.seed, t.depth, t.branching, t.spread, t.mix]);
+  if (!countsCache.has(key)) { const c = {}; build(null, false, c, t, []); countsCache.set(key, c); }
+  return countsCache.get(key);
+}
+const weaveEl = document.getElementById('weave'), wtip = document.getElementById('wtip');
+function renderWeave() {
+  weaveEl.innerHTML = '';
+  document.getElementById('weaveTag').textContent = `${forest.length} ${forest.length === 1 ? 'hilo' : 'hilos'}`;
+  document.getElementById('weaveEmpty').hidden = forest.length > 0;
+  // el grosor de cada hilo se ajusta para que el tejido llene el panel
+  const avail = Math.max(120, weaveEl.clientHeight - 20);
+  const rh = Math.max(6, Math.min(30, Math.floor(avail / Math.max(forest.length, 1)) - 3));
+  weaveEl.style.setProperty('--rh', rh + 'px');
+  weaveEl.style.setProperty('--gap', (rh < 10 ? 2 : 3) + 'px');
+  for (const t of forest) {
+    const counts = countsFor(t), total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    const row = document.createElement('div');
+    row.className = 'wrow'; row.tabIndex = 0; row.setAttribute('role', 'option'); row.dataset.id = t.id;
+    row.setAttribute('aria-label', t.name);
+    row.innerHTML = PIECES.filter(p => counts[p.id]).map(p => `<i style="flex-grow:${counts[p.id] / total};background:${p.color}"></i>`).join('');
+    row.classList.toggle('on', tej && tej.t.id === t.id);
+    row.addEventListener('pointermove', e => {
+      wtip.innerHTML = '';
+      wtip.append(t.name); const sm = document.createElement('small'); sm.textContent = `${total} piezas`; wtip.append(sm);
+      const x = Math.min(e.clientX + 16, innerWidth - wtip.offsetWidth - 8), y = e.clientY - wtip.offsetHeight - 12;
+      wtip.style.transform = `translate(${x}px, ${Math.max(8, y)}px)`; wtip.classList.add('show');
+    });
+    row.addEventListener('pointerleave', () => wtip.classList.remove('show'));
+    row.addEventListener('click', () => showTej(t));
+    row.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showTej(t); } });
+    weaveEl.appendChild(row);
+  }
+}
+addEventListener('resize', () => { if (VIEW === 'tejido') renderWeave(); });
+
+const tejStageEl = document.getElementById('tejStage');
+const tejScene = new THREE.Scene(); const tkey = studio(tejScene);
+tkey.castShadow = true; tkey.shadow.mapSize.set(2048, 2048); tkey.shadow.bias = -.0004; tkey.shadow.normalBias = .02; tkey.shadow.radius = 6;
+tejScene.add(tkey.target);
+const tejCam = new THREE.PerspectiveCamera(35, 1, .05, 200); tejCam.position.set(3.5, 3, 9);
+const tcontrols = new OrbitControls(tejCam, tejStageEl);
+tcontrols.enableDamping = true; tcontrols.dampingFactor = .07; tcontrols.autoRotate = true; tcontrols.autoRotateSpeed = .7;
+tcontrols.maxPolarAngle = GROUND_POLAR;
+const GT = makeGround(tejScene);
+let tej = null, tfit = null;
+function showTej(t) {
+  if (tej) { tejScene.remove(tej.group); }
+  const group = new THREE.Group(), crown = new THREE.Group(), root = new THREE.Group(), list = [];
+  root.scale.y = -1; root.visible = showRoot;
+  build(crown, false, {}, t, list); build(root, true, {}, t, list);
+  group.add(crown, root); tejScene.add(group);
+  const sCrown = sphereOf(crown), sAll = sphereOf(crown, root);
+  const box = new THREE.Box3().setFromObject(crown);
+  GT.mesh.scale.setScalar(Math.max(1.8, Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z) * 1.35));
+  const sc = tkey.shadow.camera, R = sCrown.radius * 1.3;
+  sc.left = sc.bottom = -R; sc.right = sc.top = R; sc.near = .1; sc.far = R * 6; sc.updateProjectionMatrix();
+  tkey.target.position.copy(sCrown.center); tkey.position.copy(sCrown.center).add(V(-3, 5, 4).setLength(R * 2.5));
+  const now = performance.now();
+  list.forEach(o => o.scale.setScalar(1e-4));
+  tej = { t, group, crown, root, list, sCrown, sAll, cs: now, rs: now + 400, done: false };
+  refitTej();
+  document.getElementById('tejName').textContent = t.name;
+  const date = new Date(t.date).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' });
+  document.getElementById('tejMeta').textContent = `${date} · semilla ${t.seed}`;
+  document.getElementById('tejEmpty').hidden = true;
+  document.getElementById('tejOpen').disabled = document.getElementById('tejForest').disabled = false;
+  weaveEl.querySelectorAll('.wrow').forEach(r => { r.classList.toggle('on', r.dataset.id === t.id); r.setAttribute('aria-selected', r.dataset.id === t.id); });
+}
+function refitTej() {
+  const s = showRoot ? tej.sAll : tej.sCrown;
+  tfit = { center: s.center.clone(), radius: s.radius, until: performance.now() + 1600 };
+}
+document.getElementById('tejOpen').addEventListener('click', () => tej && openInTaller(tej.t));
+document.getElementById('tejForest').addEventListener('click', () => { if (!tej) return; const id = tej.t.id; setView('bosque'); select(id, true, true); });
+tejStageEl.querySelector('.tr').addEventListener('pointerdown', e => e.stopPropagation());
+tejStageEl.addEventListener('pointerdown', () => { if (tfit) tfit.until = 0; });
+tejStageEl.addEventListener('wheel', () => { if (tfit) tfit.until = 0; }, { passive: true });
+function frameTejido(now, w, h) {
+  if (tej && !tej.done) {
+    let busy = false;
+    for (const o of tej.list) {
+      const u = o.userData, t = (now - (u.root ? tej.rs : tej.cs)) / 1000, k = Math.min(1, Math.max(0, (t - u.delay) / .55));
+      o.scale.setScalar(Math.max(1e-4, u.s * (k >= 1 ? 1 : easeBack(k))));
+      if (k < 1) busy = true;
+    }
+    tej.done = !busy;
+  }
+  fadeGround(GT);
+  if (tfit && now < tfit.until) glide(tejCam, tcontrols, tfit);
+  tcontrols.update();
+  view(tejStageEl, tejScene, tejCam, { left: 0, top: 0, right: w, bottom: h });
+}
+
 /* ---------- secciones ---------- */
 let VIEW = 'taller';
 function setView(v) {
   VIEW = v;
   document.getElementById('taller').hidden = v !== 'taller';
   document.getElementById('bosque').hidden = v !== 'bosque';
+  document.getElementById('tejido').hidden = v !== 'tejido';
+  if (v === 'tejido') { renderWeave(); if (tej) refitTej(); }
   document.querySelectorAll('nav.views button').forEach(b => b.dataset.view === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   if (v === 'bosque') { if (forestDirty) plant(); else fitForest(); fcontrols.autoRotate = true; }
 }
 document.querySelectorAll('nav.views button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 forestStageEl.querySelector('.tr').addEventListener('pointerdown', e => e.stopPropagation());
-document.querySelector('.rootToggle').addEventListener('click', () => setRoot(!showRoot));
+document.querySelectorAll('.rootToggle').forEach(b => b.addEventListener('click', () => setRoot(!showRoot)));
 document.getElementById('btnForestAll').addEventListener('click', () => { fitForest(); fcontrols.autoRotate = true; });
 forestStageEl.addEventListener('pointerdown', () => { if (ffit) ffit.until = 0; });
 forestStageEl.addEventListener('wheel', () => { if (ffit) ffit.until = 0; }, { passive: true });
@@ -1494,6 +1642,7 @@ function frame(now) {
   renderer.setScissorTest(false); renderer.clear(); renderer.setScissorTest(true);
 
   if (VIEW === 'bosque') { frameForest(now, w, h); return; }
+  if (VIEW === 'tejido') { frameTejido(now, w, h); return; }
 
   // crecimiento y flotación
   for (const o of pieces) {
