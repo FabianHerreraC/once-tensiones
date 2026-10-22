@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Once tensiones</title>
+<title>50 años construyendo un bosque</title>
 <style>
   :root {
     --g1: #D4D4D4;
@@ -45,7 +45,11 @@
     gap: 14px;
   }
   .app[hidden], .forest[hidden] { display: none; }
-  header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; padding: 4px 6px 0; }
+  header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 28px; padding: 4px 6px 0; }
+  .brand { display: flex; align-items: center; gap: 18px; min-width: 0; }
+  .brand .logo { height: 38px; width: auto; display: block; flex: none; }
+  .brand h1 { white-space: nowrap; }
+  header .copy { grid-column: 1 / -1; grid-row: 2; margin: 0; max-width: 150ch; font-size: 12.5px; line-height: 1.5; }
   nav.views { margin-left: auto; display: flex; gap: 4px; padding: 3px; border-radius: 99px; background: var(--g3); border: 1px solid var(--g1); align-self: center; }
   nav.views button { box-shadow: none; background: transparent; border-color: transparent; padding: 7px 14px; }
   nav.views button[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
@@ -98,8 +102,14 @@
   .wrow { position: absolute; left: 14px; right: 14px; top: 0; display: flex; height: 4px; border-radius: 2px; overflow: hidden; cursor: pointer; transform-origin: center; will-change: transform, opacity; }
   .wrow i { display: block; height: 100%; }
   .wrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  .wedge { position: absolute; left: 0; right: 0; height: 26%; z-index: 2; pointer-events: none; }
-  .wedge.top { top: 0; } .wedge.bottom { bottom: 0; }
+  .wedge { position: absolute; left: 50%; z-index: 2; pointer-events: none; width: 34px; height: 18px; margin-left: -17px;
+    display: grid; place-items: center; border-radius: 99px; background: var(--g3); box-shadow: 0 0 0 1px var(--g1); opacity: .55; transition: opacity .2s ease, transform .2s ease; }
+  .wedge::before { content: ""; width: 7px; height: 7px; border: solid var(--ink); border-width: 1.5px 1.5px 0 0; }
+  .wedge.top { top: 4px; } .wedge.top::before { transform: translateY(2px) rotate(-45deg); }
+  .wedge.bottom { bottom: 4px; } .wedge.bottom::before { transform: translateY(-2px) rotate(135deg); }
+  .wbox.up .wedge.top, .wbox.down .wedge.bottom { opacity: 1; }
+  .wbox.up .wedge.top { transform: translateY(-2px); } .wbox.down .wedge.bottom { transform: translateY(2px); }
+  .wbox.still .wedge { display: none; }
   .weave-empty[hidden] { display: none; }
   .wtip { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .12s ease; white-space: nowrap;
     padding: 6px 12px 7px; border-radius: 99px; background: var(--g3); box-shadow: 0 0 0 1px var(--g1), 0 10px 24px -14px rgba(0,0,0,.4);
@@ -296,6 +306,9 @@
     .mid .pl b + b { text-align: right; }
     .tsl output { min-width: 36px; font-size: 9.5px; }
     nav.views { margin-left: 0; }
+    header { grid-template-columns: 1fr; }
+    .brand { flex-wrap: wrap; gap: 10px; }
+    .brand h1 { white-space: normal; padding-left: 0; border-left: 0; font-size: 26px; }
     .tejido { grid-template-columns: 1fr; grid-template-rows: auto 60vh; grid-template-areas: "weave" "tst"; }
     .wbox { flex: none; width: calc(100% - 16px); }
   }
@@ -305,7 +318,8 @@
      regular para lo que se lee. */
   :root { --thin: 200; --reg: 400; --bold: 700; }
   body { font-weight: var(--reg); }
-  header h1 { font-weight: var(--thin); font-size: 32px; letter-spacing: -0.02em; }
+  header h1 { font-weight: var(--thin); font-size: 30px; letter-spacing: -0.02em; padding-left: 18px; border-left: 1px solid var(--g1); }
+  header h1 b { font-weight: var(--bold); }
   header h1 em { font-weight: var(--bold); font-size: .62em; letter-spacing: 0; margin-left: 6px; }
   header p { font-weight: var(--reg); }
   .tag, .group h3, .card .role, .desc .pair, .card .more, .stats, .trow .nm small, dialog label, .ftree .meta, .card .num, .stage .tl .tag {
@@ -343,8 +357,11 @@
 
 <div class="frame">
   <header>
-    <h1>Once tensiones <em>del árbol universitario</em></h1>
-    <p>Cada tensión une dos polos, y cada polo es una geometría. Mueve los deslizadores para decidir hacia dónde crece el árbol; bajo el suelo, su raíz lo refleja.</p>
+    <div class="brand">
+      <img src="assets/bosque-logo.svg" alt="Universidad El Bosque" class="logo">
+      <h1><b>50 años</b> construyendo un bosque</h1>
+    </div>
+    <p class="copy">Antes de que hubiera templos, lo sagrado habitaba en los bosques: allí la palabra se aprendía escuchando, bajo ramas que nadie había plantado y que todos cuidaban. Una universidad es ese mismo claro abierto en la espesura, donde cada árbol crece hacia su propia luz sin dejar de enlazar, bajo tierra, sus raíces con las de los otros. Cincuenta años después, lo que vemos es la copa; lo que nos sostiene es la trama invisible de quienes enseñaron y aprendieron aquí, y que sigue germinando.</p>
     <nav class="views" aria-label="Secciones">
       <button data-view="taller" aria-current="page">Taller</button>
       <button data-view="bosque">Bosque<span class="n" id="forestCount">0</span></button>
@@ -1745,8 +1762,8 @@ function countsFor(t) {
   return countsCache.get(key);
 }
 const weaveEl = document.getElementById('weave'), wtip = document.getElementById('wtip');
-// la ruleta: los hilos se ordenan en un tambor que se repite; cerca del centro se ven plenos y
-// hacia los bordes se adelgazan y se desvanecen. Acercar el cursor arriba o abajo lo hace girar.
+// la ruleta: los hilos se ordenan en un tambor que se repite sin fin.
+// Acercar el cursor al borde de arriba o de abajo lo hace girar; dos flechas lo señalan.
 const PITCH = 11, RH = 4;
 let wrows = [], woff = 0, wvel = 0, whover = null, wtouch = null;
 const weaveSearchEl = document.getElementById('weaveSearch');
@@ -1796,17 +1813,16 @@ function frameWeave(dt) {
   if (wtarget !== null) { woff = lerp(woff, wtarget, 1 - Math.exp(-dt * 8)); if (Math.abs(woff - wtarget) < .5) { woff = wtarget; wtarget = null; } }
   else woff += wvel * dt;
   if (!loops) woff = (H - T) / 2;                       // pocos hilos: quietos y centrados
+  weaveEl.classList.toggle('still', !loops);
+  weaveEl.classList.toggle('up', wvel > 1); weaveEl.classList.toggle('down', wvel < -1);
   for (let i = 0; i < n; i++) {
     const w = wrows[i];
     let y = i * PITCH + woff;
     if (loops) y = ((y % T) + T) % T - PITCH;            // el tambor se repite
-    const d = Math.min(1, Math.abs(y + RH / 2 - H / 2) / (H / 2));
-    const drum = Math.cos(d * Math.PI / 2);             // perfil de ruleta
     const sel = tej && tej.t.id === w.t.id, hov = whover === w.t.id;
-    const k = (sel || hov ? 2 : 1) * (.35 + .65 * drum);
+    const k = sel || hov ? 2 : 1;
     w.k = lerp(w.k, k, 1 - Math.exp(-dt * 14));
     w.row.style.transform = `translateY(${y.toFixed(1)}px) scaleY(${w.k.toFixed(3)})`;
-    w.row.style.opacity = (sel || hov ? 1 : .15 + .85 * drum).toFixed(3);
     w.row.style.visibility = y < -PITCH || y > H ? 'hidden' : '';
   }
 }
